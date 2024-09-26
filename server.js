@@ -22,7 +22,7 @@ function getClientIp(req) {
 }
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'index2.html')); // index.html during debugging
 });
 
 wss.on('connection', (ws, req) => {
@@ -44,7 +44,7 @@ wss.on('connection', (ws, req) => {
                     }));
                     return;
                 }
-                roomId = crypto.randomBytes(16).toString('hex')();
+                roomId = crypto.randomBytes(16).toString('hex')
                 chatRooms.set(roomId, {
                     users: new Map(),
                     messages: [],
