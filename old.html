@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssChat</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f0f0; }
+        #join-container, #chat-container { max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #chat-messages { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        input, button { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .message { margin-bottom: 10px; }
+        .message .username { font-weight: bold; }
+        .message .timestamp { font-size: 0.8em; color: #888; margin-left: 10px; }
+        #user-list { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px; }
+        #room-settings { margin-top: 20px; }
+        .footer { 
+            position: fixed; 
+            left: 0; 
+            bottom: 0; 
+            width: 100%; 
+            background-color: rgba(255, 255, 255, 0.8); 
+            text-align: center; 
+            padding: 10px; 
+            font-size: 0.8em; 
+            color: #888; 
+            z-index: 1000; 
+        }
+    </style>
+</head>
+<body>
+    <div id="join-container">
+        <h2>Join AssChat</h2>
+        <input type="text" id="username-input" placeholder="username here">
+        <button id="create-room-btn">Create New Room</button>
+    </div>
+
+    <div id="chat-container" style="display:none;">
+        <h2 id="room-name">AssChat Room</h2>
+        <div id="chat-messages"></div>
+        <input type="text" id="message-input" placeholder="message here">
+        <button id="send-btn">Send</button>
+        <div id="user-list"></div>
+        <div id="room-settings"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // save lines :pray:
+        let socket,roomId,userName,sharedKey
+        
+        const joinContainer = document.getElementById('join-container');
+        const chatContainer = document.getElementById('chat-container');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const usernameInput = document.getElementById('username-input');
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const userList = document.getElementById('user-list');
+        const roomSettings = document.getElementById('room-settings');
+        
+        function decryptMessage(ciphertext) {
+            return CryptoJS.AES.decrypt(ciphertext, sharedKey).toString(CryptoJS.enc.Utf8);
+        }
+        
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                socket = new WebSocket(`${protocol}//${window.location.host}`);
+        
+                socket.onopen = () => {
+                    console.log('connected to asschat server');
+                    resolve();
+                };
+        
+                socket.onerror = (error) => {
+                    console.error(error);
+                    reject(error);
+                };
+        
+                setupSocketHandlers();
+            });
+        }
+        
+        createRoomBtn.addEventListener('click', async () => {
+            userName = usernameInput.value.trim();
+            if (!userName) return alert('username empty');
+            localStorage.setItem('username', userName);
+        
+            try {
+                await connectWebSocket();
+                socket.send(JSON.stringify({
+                    type: 'create',
+                    key: "BEGIN_ASS_KEY_"+CryptoJS.lib.WordArray.random(169).toString()
+                }));
+            } catch (error) {
+                alert('failed to connect to assChat server');
+            }
+        });
+        
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && socket.readyState === WebSocket.OPEN) {
+                const encryptedMessage = CryptoJS.AES.encrypt(message, sharedKey).toString();
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    content: encryptedMessage
+                }));
+                messageInput.value = '';
+            }
+        }
+        
+        function setupSocketHandlers() {
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log(data);
+        
+                switch (data.type) {
+                    case 'roomCreated':
+                        roomId = data.roomId;
+        
+                        socket.send(JSON.stringify({
+                            type: 'join',
+                            userName,
+                            roomId
+                        }));
+                        window.history.pushState(null, '', `/?room=${roomId}`);
+                        roomSettings.innerHTML = `
+                                <h3>AssChat Settings</h3>
+                                <input type="text" id="room-name-input" placeholder="new name here">
+                                <button id="rename-room-btn">Rename Room</button>
+                                <button id="close-room-btn">Close Room</button>
+                                <input type="number" id="timeout-input" placeholder="timout (min)">
+                                <button id="set-timeout-btn">Set Close Timeout</button>
+                            `;
+                        document.getElementById('rename-room-btn').addEventListener('click', renameRoom);
+                        document.getElementById('close-room-btn').addEventListener('click', closeRoom);
+                        document.getElementById('set-timeout-btn').addEventListener('click', setClose);
+                        break;
+                    case 'joined':
+                        sharedKey = data.sharedKey;
+                        joinContainer.style.display = 'none';
+                        chatContainer.style.display = 'block';
+                        updateUserList(data.users);
+                        data.messages.forEach(msg => displayMessage(msg.userName, decryptMessage(msg.content), new Date(msg.timestamp)));
+                        break;
+                    case 'message':
+                        displayMessage(data.userName, decryptMessage(data.content), new Date(data.timestamp));
+                        break;
+                    case 'userJoined':
+                    case 'userLeft':
+                        updateUserList(data.users);
+                        break;
+                    case 'roomClosed':
+                        alert('room closed');
+                        window.location.href = '/';
+                        break;
+                    case 'roomRenamed':
+                        document.getElementById('room-name').textContent = data.newName;
+                        break;
+                    case 'error':
+        
+                        if (data.message.toString().includes("not found")) {
+                            alert("room not found")
+                            return location.href = "/"
+                        }
+                        alert(data.message);
+                        break;
+                }
+            };
+        
+            socket.onclose = () => {
+                alert('connection to server closed');
+                location.href = "/"
+            };
+        }
+        
+        function displayMessage(user, content, timestamp) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.innerHTML = `
+                        <span class="username">${user}:</span>
+                        <span class="content">${content}</span>
+                        <span class="timestamp">${timestamp.toLocaleTimeString()}</span>
+                    `;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function updateUserList(users) {
+            userList.innerHTML = '<h3>users online:</h3>';
+            users.forEach(user => {
+                const userElement = document.createElement('div');
+                userElement.textContent = user;
+                userList.appendChild(userElement);
+            });
+        }
+        
+        function renameRoom() {
+            const newName = document.getElementById('room-name-input').value.trim();
+            if (newName) {
+                socket.send(JSON.stringify({
+                    type: 'renameRoom',
+                    newName
+                }));
+            }
+        }
+        
+        function closeRoom() {
+            socket.send(JSON.stringify({
+                type: 'closeRoom'
+            }));
+        }
+        
+        function setClose() {
+            const timeout = document.getElementById('timeout-input').value;
+            if (timeout) {
+                socket.send(JSON.stringify({
+                    type: 'setTimeout',
+                    timeout
+                }));
+            }
+        }
+        
+        async function joinRoom() {
+            if (!userName) return alert('Please enter a username');
+            localStorage.setItem('username', userName);
+        
+            try {
+                await connectWebSocket();
+                socket.send(JSON.stringify({
+                    type: 'join',
+                    userName,
+                    roomId
+                }));
+            } catch (error) {
+                alert('fail to join room');
+            }
+        }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            roomId = roomParam;
+            userName = localStorage.getItem('username') || '';
+        
+            if (userName) {
+                joinRoom();
+            } else {
+                joinContainer.innerHTML = `
+                            <h2>Join AssChat Room</h2>
+                            <input type="text" id="username-input" placeholder="Enter your username">
+                            <button id="join-room-btn">Join Room</button>
+                        `;
+                usernameInput = document.getElementById('username-input');
+                document.getElementById('join-room-btn').addEventListener('click', () => {
+                    userName = usernameInput.value.trim();
+                    joinRoom();
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -6,133 +6,162 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({
-    server // why do i set it to the http server? good question, but as a random user on stackoverflow said, "it helps fix weird errors"
-});
+const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 80;
 
-// am so pro
 const chatRooms = new Map();
-const ipMappings = new Map();
+const userIPs = new Map();
+const debug = false
 
-// this shit took em way too long :sob:
 function getClientIp(req) {
-    return req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    if (debug) return crypto.randomBytes(4).toString('hex')
+    return req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 }
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index2.html')); // index.html during debugging
+    res.sendFile(path.join(__dirname, debug ? 'index.html' : 'index2.html'));
 });
 
 wss.on('connection', (ws, req) => {
-    const ip = getClientIp(req); // get IP from req during connection
-
-    ws.req = req; // we do NOT need this :sob:
+    const ip = getClientIp(req);
     let roomId = null;
     let userName = null;
 
     ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
+        const data = JSON.parse(message);
 
-            if (data.type === 'create') {
-                if (ipMappings.has(ip)) {
-                    ws.send(JSON.stringify({
-                        type: 'error',
-                        message: 'ladies, ladies, one at a time'
-                    }));
+        switch (data.type) {
+            case 'create':
+                if (userIPs.has(ip)) {
+                    ws.send(JSON.stringify({ type: 'error', message: 'ladies, ladies, one room at a time' }));
                     return;
                 }
-                roomId = crypto.randomBytes(16).toString('hex')
-                chatRooms.set(roomId, {
-                    users: new Map(),
-                    messages: [],
-                    lastActivity: Date.now(),
-                    timeoutId: setTimeout(() => chatRooms.delete(roomId), 30000)
+                roomId = crypto.randomBytes(16).toString("hex");
+                chatRooms.set(roomId, { 
+                    users: new Map(), 
+                    messages: [], 
+                    sharedKey: crypto.randomBytes(169).toString(), 
+                    creator: ip,
+                    name: `AssChat - ${roomId.substr(0, 6)}`,
+                    timeout: null
                 });
-                ipMappings.set(ip, roomId);
-                ws.send(JSON.stringify({
-                    type: 'roomCreated',
-                    roomId
-                }));
-            } else if (data.type === 'join') {
+                userIPs.set(ip, roomId);
+                ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
+                break;
+
+            case 'join':
                 roomId = data.roomId;
                 userName = data.userName;
 
                 if (!chatRooms.has(roomId)) {
-                    ws.send(JSON.stringify({
-                        type: 'error',
-                        message: 'where da fuq is that room id!??!'
-                    }));
-                    return;
+                    return ws.send(JSON.stringify({ type: 'error', message: 'room not found' }));
                 }
 
                 const room = chatRooms.get(roomId);
-                clearTimeout(room.timeoutId);
-                room.lastActivity = Date.now();
-
-                if (room.users.has(ip)) {
-                    userName = room.users.get(ip);
-                } else {
-                    room.users.set(ip, userName);
-                }
+                room.users.set(ip, { userName, ws });
 
                 ws.send(JSON.stringify({
                     type: 'joined',
                     userName,
-                    messages: room.messages
+                    messages: room.messages,
+                    sharedKey: room.sharedKey,
+                    users: Array.from(room.users.values()).map(u => u.userName)
                 }));
-            } else if (data.type === 'message' && roomId) {
-                const room = chatRooms.get(roomId);
-                if (room && room.users.has(ip)) {
-                    const timestamp = Date.now();
-                    if (room.messages.length > 0 && timestamp - room.messages[room.messages.length - 1].timestamp < 1000) {
-                        ws.send(JSON.stringify({
-                            type: 'error',
-                            message: 'fuck u 429 bahahaha'
-                        }));
-                        return;
-                    }
 
-                    room.messages.push({
-                        userName,
-                        content: data.content,
-                        timestamp
-                    });
-                    room.lastActivity = timestamp;
-                    room.users.forEach((_, userIp) => {
-                        wss.clients.forEach((client) => {
-                            if (client.readyState === WebSocket.OPEN && getClientIp(client.req) === userIp) {
-                                client.send(JSON.stringify({
-                                    type: 'message',
-                                    userName,
-                                    content: data.content
-                                }));
-                            }
-                        });
+                room.users.forEach((user) => {
+                    if (user.ws !== ws && user.ws.readyState === WebSocket.OPEN) {
+                        user.ws.send(JSON.stringify({ 
+                            type: 'userJoined', 
+                            users: Array.from(room.users.values()).map(u => u.userName)
+                        }));
+                    }
+                });
+                break;
+
+            case 'message':
+                if (roomId && chatRooms.has(roomId)) {
+                    const room = chatRooms.get(roomId);
+                    const timestamp = new Date().toISOString();
+                    const message = { userName, content: data.content, timestamp };
+                    room.messages.push(message);
+
+                    room.users.forEach((user) => {
+                        if (user.ws.readyState === WebSocket.OPEN) {
+                            user.ws.send(JSON.stringify({ type: 'message', ...message }));
+                        }
                     });
                 }
-            }
-        } catch (error) {
-            console.error(error);
+                break;
+
+            case 'renameRoom':
+                if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
+                    const room = chatRooms.get(roomId);
+                    room.name = "AssChat - " + data.newName;
+                    room.users.forEach((user) => {
+                        if (user.ws.readyState === WebSocket.OPEN) {
+                            user.ws.send(JSON.stringify({ type: 'roomRenamed', newName: room.name }));
+                        }
+                    });
+                }
+                break;
+
+            case 'closeRoom':
+                if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
+                    const room = chatRooms.get(roomId);
+                    room.users.forEach((user) => {
+                        if (user.ws.readyState === WebSocket.OPEN) {
+                            user.ws.send(JSON.stringify({ type: 'roomClosed' }));
+                            user.ws.close();
+                        }
+                    });
+                    chatRooms.delete(roomId);
+                    userIPs.delete(ip);
+                }
+                break;
+
+            case 'setTimeout':
+                if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
+                    const room = chatRooms.get(roomId);
+                    const timeout = parseInt(data.timeout) * 60 * 1000;
+                    if (room.timeout) clearTimeout(room.timeout);
+                    room.timeout = setTimeout(() => {
+                        room.users.forEach((user) => {
+                            if (user.ws.readyState === WebSocket.OPEN) {
+                                user.ws.send(JSON.stringify({ type: 'roomClosed' }));
+                                user.ws.close();
+                            }
+                        });
+                        chatRooms.delete(roomId);
+                        userIPs.delete(ip);
+                    }, timeout);
+                }
+                break;
         }
     });
 
     ws.on('close', () => {
-        if (roomId) {
+        if (roomId && chatRooms.has(roomId)) {
             const room = chatRooms.get(roomId);
-            if (room) {
-                room.users.delete(ip);
-                if (room.users.size === 0) {
-                    room.timeoutId = setTimeout(() => chatRooms.delete(roomId), 30000);
-                }
+            room.users.delete(ip);
+            if (room.users.size === 0) {
+                if (room.timeout) clearTimeout(room.timeout);
+                chatRooms.delete(roomId);
+                userIPs.delete(ip);
+            } else {
+                room.users.forEach((user) => {
+                    if (user.ws.readyState === WebSocket.OPEN) {
+                        user.ws.send(JSON.stringify({ 
+                            type: 'userLeft', 
+                            users: Array.from(room.users.values()).map(u => u.userName)
+                        }));
+                    }
+                });
             }
-            ipMappings.delete(ip);
         }
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`asschat running http://localhost:${PORT}`);
+    console.log(`ass on port ${PORT}`);
 });
