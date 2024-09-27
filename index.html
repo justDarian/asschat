@@ -712,6 +712,7 @@
 
                 socket.onopen = () => {
                     console.log('connected to asschat server');
+                    setupSocketHandlers();
                     resolve();
                 };
 
@@ -720,7 +721,17 @@
                     reject(error);
                 };
 
-                setupSocketHandlers();
+                socket.onclose = () => {
+                    popnotif('Connection to server closed', 'error');
+                    location.href = "/";
+                };
+
+                // pinger to prevent closing
+                setInterval(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'ping' }));
+                    }
+                }, 10000);
             });
         }
         createRoomBtn.addEventListener('click', async () => {
@@ -801,6 +812,8 @@
                         showmsg(data.userName, decryptMessage(data.content), new Date(data.timestamp));
                         break;
                     case 'userJoined':
+                        updateUserList(data.users);
+                        break
                     case 'userLeft':
                         updateUserList(data.users);
                         break;
@@ -819,10 +832,6 @@
                         popnotif(data.message, "error");
                         break;
                 }
-            };
-            socket.onclose = () => {
-                popnotif('Connection to server closed', 'error');
-                location.href = "/";
             };
         }
 

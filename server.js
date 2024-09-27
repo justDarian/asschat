@@ -59,6 +59,10 @@ wss.on('connection', (ws, req) => {
                 }
 
                 const room = chatRooms.get(roomId);
+                if (room.deletionTimeout) {
+                    clearTimeout(room.deletionTimeout);
+                    room.deletionTimeout = null;
+                }
                 room.users.set(ip, { userName, ws });
 
                 ws.send(JSON.stringify({
@@ -146,8 +150,10 @@ wss.on('connection', (ws, req) => {
             room.users.delete(ip);
             if (room.users.size === 0) {
                 if (room.timeout) clearTimeout(room.timeout);
-                chatRooms.delete(roomId);
-                userIPs.delete(ip);
+                room.deletionTimeout = setTimeout(() => {
+                    chatRooms.delete(roomId);
+                    userIPs.delete(ip);
+                }, 10000);
             } else {
                 room.users.forEach((user) => {
                     if (user.ws.readyState === WebSocket.OPEN) {
