@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssChat</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center relative">
+
+    <!-- Particles.js background -->
+    <div id="particles-js"></div>
+
+    <!-- Join Room Container -->
+    <div id="join-container" class="glassmorphic max-w-lg mx-auto p-6 rounded-lg shadow-lg text-gray-300 fade-in relative z-10">
+        <h2 class="text-2xl font-bold mb-4 text-center">Join AssChat</h2>
+        <input type="text" id="username-input" placeholder="username here" class="w-full p-3 mb-4 rounded-lg border border-gray-600 bg-gray-800 focus:outline-none focus:ring focus:ring-indigo-500">
+        <button id="create-room-btn" class="w-full p-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                <path d="M12 5V19M5 12H19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Create New Room
+        </button>
+        <br><br>
+        <center>
+            <div class="text-sm text-gray-500">by: darian, cyx, slqnt</div>
+        </center>
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chat-container" class="glassmorphic mx-auto p-4 rounded-lg shadow-lg text-gray-300 fade-in relative z-10" style="display:none;">
+        <!-- Chat Header -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="room-name" class="text-3xl font-bold">AssChat Room</h2>
+            <div class="flex items-center">
+                <button id="invite-btn" class="mr-4 p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors">
+                    <i data-lucide="user-plus"></i>
+                </button>
+                <button id="settings-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Chat Area -->
+        <div class="chat-container">
+            <div class="chat-area">
+                <div id="chat-messages" class="message-container"></div>
+                <div class="input-container">
+                    <textarea id="message-input" placeholder="Type your message here" rows="1"></textarea>
+                    <button id="send-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <!-- User List -->
+            <div class="user-list-container">
+                <h3 class="font-semibold mb-3 text-xl">Users Online</h3>
+                <div id="user-list" class="user-list"></div>
+            </div>
+        </div>
+        <div id="room-settings" class="mt-6"></div>
+    </div>
+
+    <!-- Toast Container for Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Invite Modal -->
+    <div id="invite-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div id="invite-modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div id="settings-modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">Room Settings</h3>
+                    <button id="close-settings-modal" class="text-gray-300 hover:text-gray-100">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <input type="text" id="room-name-input" placeholder="New room name" class="w-full p-2 mb-4 rounded-lg border border-gray-600 bg-gray-800">
+                <button id="rename-room-btn" class="w-full p-2 mb-4 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Rename Room</button>
+                <input type="number" id="timeout-input" placeholder="Timeout (minutes)" class="w-full p-2 mb-4 rounded-lg border border-gray-600 bg-gray-800">
+                <button id="set-timeout-btn" class="w-full p-2 mb-4 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Set Close Timeout</button>
+                <button id="close-room-btn" class="w-full p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors">Close Room</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // global variables
+        let socket, roomId, userName, sharedKey, owner, ping
+        const users = new Map();
+
+        // dom elements
+        const joinContainer = document.getElementById('join-container');
+        const chatContainer = document.getElementById('chat-container');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const usernameInput = document.getElementById('username-input');
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const userList = document.getElementById('user-list');
+        const toastContainer = document.getElementById('toast-container');
+        const inviteBtn = document.getElementById('invite-btn');
+        const inviteModal = document.getElementById('invite-modal');
+        const inviteModalContent = document.getElementById('invite-modal-content');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsModal = document.getElementById('close-settings-modal');
+
+        // event listeners
+        createRoomBtn.addEventListener('click', createRoom);
+        sendBtn.addEventListener('click', sendMessage);
+        inviteBtn.addEventListener('click', showInviteModal);
+        settingsBtn.addEventListener('click', showSettingsModal);
+        closeSettingsModal.addEventListener('click', closeSettingsModalHandler);
+        messageInput.addEventListener('keydown', handleMessageInputKeydown);
+        messageInput.addEventListener('input', autoResizeInput);
+        document.getElementById('rename-room-btn').addEventListener('click', renameRoom);
+        document.getElementById('set-timeout-btn').addEventListener('click', setRoomTimeout);
+        document.getElementById('close-room-btn').addEventListener('click', closeRoom);
+
+        // WebSocket functions
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                socket = new WebSocket(`${protocol}//${window.location.host}`);
+
+                socket.onopen = () => {
+                    console.log('connected to AssChat server');
+                    setupSocketHandlers();
+                    resolve();
+                };
+
+                socket.onerror = (error) => {
+                    console.error(error);
+                    reject(error);
+                };
+
+                socket.onclose = () => {
+                    popnotif('Connection to server closed', 'error');
+                    location.href = "/";
+                };
+
+                // pinger
+                setInterval(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'ping' }));
+                        ping = Date.now();
+                        console.log("ping")
+                    }
+                }, 1000 * 20);
+            });
+        }
+
+        function setupSocketHandlers() {
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                switch (data.type) {
+                    case 'pong':
+                        console.log(`ping: ${Date.now() - ping}ms`);
+                        ping = null
+                        break;
+                    case 'roomCreated':
+                        owner = true;
+                        roomId = data.roomId;
+                        socket.send(JSON.stringify({
+                            type: 'join',
+                            userName,
+                            roomId
+                        }));
+                        window.history.pushState(null, '', `/?room=${roomId}`);
+                        break;
+                    case 'joined':
+                        sharedKey = data.sharedKey;
+                        joinContainer.style.display = 'none';
+                        chatContainer.style.display = 'block';
+                        updateUserList(data.users);
+                        data.messages.forEach(msg => showmsg(msg.userName, decryptMessage(msg.content), new Date(msg.timestamp)));
+            
+                        owner = data.isCreator || data.users.length === 1;
+                        settingsBtn.style.display = owner ? 'inline-block' : 'none';
+                        break;
+                    case 'message':
+                        showmsg(data.userName, decryptMessage(data.content), new Date(data.timestamp));
+                        break;
+                    case 'userJoined':
+                        updateUserList(data.users);
+                        break;
+                    case 'userLeft':
+                        updateUserList(data.users);
+                        break;
+                    case 'roomClosed':
+                        popnotif('Room closed', 'error');
+                        window.history.pushState(null, '', `/`);
+                        break;
+                    case 'roomRenamed':
+                        document.getElementById('room-name').textContent = data.newName;
+                        break;
+                    case 'error':
+                        if (data.message.toString().includes("not found")) {
+                            popnotif("Room not found", "error");
+                            return location.href = "/";
+                        }
+                        popnotif(data.message, "error");
+                        break;
+                }
+            };
+        }
+
+        // room functions
+        async function createRoom() {
+            userName = usernameInput.value.trim();
+            if (!userName) return popnotif('Username is empty', 'warning');
+            localStorage.setItem('username', userName);
+            try {
+                await connectWebSocket();
+                socket.send(JSON.stringify({ type: 'create' }));
+            } catch (error) {
+                popnotif('Failed to connect to AssChat server', 'error');
+            }
+        }
+
+        async function joinRoom() {
+            if (!userName) {
+                    joinContainer.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">Join Room</h2>
+                    <input type="text" id="username-input" placeholder="Enter your username" class="w-full p-3 mb-4 rounded-lg border border-gray-600 bg-gray-800">
+                    <button id="join-room-btn" class="w-full p-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Join Room</button>
+                `;
+
+                document.getElementById('join-room-btn').addEventListener('click', () => {
+                    userName = document.getElementById('username-input').value.trim();
+                    if (userName) {
+                        localStorage.setItem('username', userName.substring(0, 20));
+                        window.location.reload();
+                    } else {
+                        popnotif('Please enter a username', 'warning');
+                    }
+                });
+            } else {
+                try {
+                    await connectWebSocket();
+                    socket.send(JSON.stringify({
+                        type: 'join',
+                        userName,
+                        roomId
+                    }));
+                } catch (error) {
+                    popnotif('Failed to join room', 'error');
+                }
+            }
+        }
+
+        function renameRoom() {
+            const newName = document.getElementById('room-name-input').value.trim();
+            if (newName) {
+                socket.send(JSON.stringify({
+                    type: 'renameRoom',
+                    newName
+                }));
+            }
+            closeSettingsModalHandler();
+        }
+
+        function setRoomTimeout() {
+            const timeout = document.getElementById('timeout-input').value;
+            if (timeout) {
+                socket.send(JSON.stringify({
+                    type: 'setTimeout',
+                    timeout
+                }));
+            }
+            closeSettingsModalHandler();
+        }
+
+        function closeRoom() {
+            socket.send(JSON.stringify({
+                type: 'closeRoom'
+            }));
+            closeSettingsModalHandler();
+        }
+
+        // msg functions
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    content: encryptMessage(message)
+                }));
+                messageInput.value = '';
+                autoResizeInput();
+            }
+        }
+
+        function showmsg(user, content, timestamp) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${user === userName ? 'sent' : 'received'}`;
+            
+            content = content.replace(/\n{10,}/g, '\n\n\n\n\n\n\n\n\n');
+            content = content.replace(/\n/g, '<br>');
+            
+            const sanitizedContent = DOMPurify.sanitize(marked.parse(content));
+
+            if (user === userName) {
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-text">${sanitizedContent}</div>
+                        <span class="text-xs text-gray-500 mt-1">${timestamp.toLocaleTimeString()}</span>
+                    </div>
+                `;
+            } else {
+                messageElement.innerHTML = `
+                    <div class="message-avatar">${user.charAt(0).toUpperCase()}</div>
+                    <div class="message-content">
+                        <div class="flex items-center mb-1">
+                            <span class="font-bold message-username">${user}</span>
+                            <span class="text-xs text-gray-500 ml-2">${timestamp.toLocaleTimeString()}</span>
+                        </div>
+                        <div class="message-text">${sanitizedContent}</div>
+                    </div>
+                `;
+            }
+            chatMessages.appendChild(messageElement);
+            
+            // bring down
+            chatMessages.scrollTop = chatMessages.scrollHeight
+        }
+
+        // encryption functions
+        function encryptMessage(message) {
+            const deadData = CryptoJS.lib.WordArray.random(4).toString();
+            const salt = CryptoJS.lib.WordArray.random(8).toString();
+            const iv = CryptoJS.lib.WordArray.random(8).toString();
+            const combinedKey = CryptoJS.PBKDF2(sharedKey, salt, { keySize: 256/32, iterations: 1000 });
+            const encrypted = CryptoJS.AES.encrypt(deadData + message + deadData, combinedKey, { iv: CryptoJS.enc.Hex.parse(iv) }).toString();
+            return "ASSCRYPT_" + salt + iv + encrypted;
+        }
+        
+        function decryptMessage(ciphertext) {
+            if (!ciphertext.includes("ASSCRYPT_")) {
+                return "ASSCRYPT ERROR"
+            }
+
+            ciphertext = ciphertext.replace("ASSCRYPT_", "")
+            const salt = ciphertext.substr(0, 16);
+            const iv = ciphertext.substr(16, 16);
+            const encrypted = ciphertext.substr(32);
+            const combinedKey = CryptoJS.PBKDF2(sharedKey, salt, { keySize: 256/32, iterations: 1000 });
+            const decrypted = CryptoJS.AES.decrypt(encrypted, combinedKey, { iv: CryptoJS.enc.Hex.parse(iv) });
+            const fullMessage = decrypted.toString(CryptoJS.enc.Utf8);
+            return fullMessage.substr(8, fullMessage.length - 16);
+        }
+
+        // UI functions
+        function updateUserList(currentUsers) {
+            userList.innerHTML = '';
+            const currentUserElement = document.createElement('div');
+            
+            currentUsers.forEach(user => users.set(user, 'Online'));
+            users.forEach((status, user) => {
+                if (!currentUsers.includes(user)) users.set(user, 'Offline');
+                const userElement = document.createElement('div');
+                userElement.className = 'user-item';
+                userElement.innerHTML = `
+                    <div class="user-avatar ${user === userName ? 'current-user' : ''}">
+                        ${user.split(' ').map(w => w[0].toUpperCase()).join('').slice(0, 2)}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">${user}</span>
+                        <span class="user-status">${users.get(user)}</span>
+                    </div>
+                `;
+                
+                if (user === userName) currentUserElement.appendChild(userElement);
+                else userList.appendChild(userElement);
+            });
+        
+            userList.prepend(currentUserElement);
+        }
+        
+
+        function popnotif(message, type = 'info', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">${message}</div>
+                <span class="toast-close">&times;</span>
+            `;
+            toastContainer.appendChild(toast);
+            toast.offsetHeight;
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            }, duration);
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            });
+        }
+
+        function autoResizeInput() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = (messageInput.scrollHeight) + 'px';
+        }
+
+        // handlers
+        function handleMessageInputKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // init
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            roomId = roomParam;
+            userName = localStorage.getItem('username') || null
+            joinRoom();
+        }
+
+        inviteModal.addEventListener('click', (e) => {
+            if (e.target === inviteModal) {
+                inviteModal.classList.remove('show');
+                inviteModal.addEventListener('transitionend', () => {
+                    inviteModal.classList.add('hidden');
+                }, { once: true });
+            }
+        });
+
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+                settingsModal.addEventListener('transitionend', () => {
+                    settingsModal.classList.add('hidden');
+                }, { once: true });
+            }
+        });
+
+        function showInviteModal() {
+            inviteModalContent.innerHTML = `
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Invite Users</h3>
+                <button id="close-invite-modal" class="text-gray-300 hover:text-gray-100">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <p class="mb-4">Share this link for users to join you in chat:</p>
+            <div class="flex items-center bg-gray-700 rounded-lg p-2">
+                <input id="invite-link" type="text" readonly class="bg-transparent flex-grow mr-2 outline-none" value="${window.location.origin}/?room=${roomId}">
+                <button id="copy-link" class="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition-colors">
+                    <i data-lucide="copy"></i>
+                </button>
+            </div>
+            `;
+            inviteModal.classList.remove('hidden');
+            setTimeout(() => {
+                inviteModal.classList.add('show');
+            }, 10);
+
+            document.getElementById('close-invite-modal').addEventListener('click', closeInviteModal);
+            const copyLinkBtn = document.getElementById('copy-link');
+            if (copyLinkBtn) {
+                copyLinkBtn.addEventListener('click', () => {
+                    const inviteLinkInput = document.getElementById('invite-link');
+                    inviteLinkInput.select();
+                    document.execCommand('copy');
+                    popnotif('Link copied to clipboard', 'success');
+                });
+            }
+
+            lucide.createIcons();
+        }
+
+        function closeInviteModal() {
+            inviteModal.classList.remove('show');
+            inviteModal.addEventListener('transitionend', () => {
+                inviteModal.classList.add('hidden');
+            }, { once: true });
+        }
+
+        function showSettingsModal() {
+            settingsModal.classList.remove('hidden');
+            setTimeout(() => {
+                settingsModal.classList.add('show');
+            }, 10);
+        }
+
+        function closeSettingsModalHandler() {
+            settingsModal.classList.remove('show');
+            settingsModal.addEventListener('transitionend', () => {
+                settingsModal.classList.add('hidden');
+            }, { once: true });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            messageInput.style.height = 'auto';
+            lucide.createIcons();
+        });
+    </script>
+</body>
+
+</html>
