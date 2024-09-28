@@ -8,11 +8,16 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PORT = process.env.PORT || 80;
+// DEBUG MODE
+const debug = false
 
+const PORT = process.env.PORT || 80;
+// limit rules
+const MAX_LEN = { USER: 20, MSG: 150 };
+const RATE = { PER_USER: 300000, WINDOW: 5000 };
+// data store
 const chatRooms = new Map();
 const userIPs = new Map();
-const debug = false
 
 function getClientIp(req) {
     if (debug) return crypto.randomBytes(4).toString('hex')
@@ -21,6 +26,9 @@ function getClientIp(req) {
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, debug ? 'index.html' : 'index2.html'));
+});
+app.get(/.*\.(html|css|js)$/, (req, res) => {
+    res.sendFile(path.join(__dirname, req.path));
 });
 
 wss.on('connection', (ws, req) => {
@@ -32,6 +40,9 @@ wss.on('connection', (ws, req) => {
         const data = JSON.parse(message);
 
         switch (data.type) {
+            case 'ping':
+                ws.send(JSON.stringify({ type: 'pong', message: "hello from ass (chat) :3"}));
+                break
             case 'create':
                 if (userIPs.has(ip)) {
                     ws.send(JSON.stringify({ type: 'error', message: 'ladies, ladies, one room at a time' }));
@@ -41,10 +52,11 @@ wss.on('connection', (ws, req) => {
                 chatRooms.set(roomId, { 
                     users: new Map(), 
                     messages: [], 
-                    sharedKey: crypto.randomBytes(169).toString(), 
+                    sharedKey: "ASSCHAT_PUBKEY_"+crypto.randomBytes(169).toString(), 
                     creator: ip,
-                    name: `AssChat - ${roomId.substr(0, 6)}`,
-                    timeout: null
+                    name: `AssChat Room`,
+                    timeout: null,
+                    userMsgs: new Map()
                 });
                 userIPs.set(ip, roomId);
                 ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
@@ -52,13 +64,20 @@ wss.on('connection', (ws, req) => {
 
             case 'join':
                 roomId = data.roomId;
-                userName = data.userName;
+                userName = data.userName.substring(0, MAX_LEN.USER);
 
                 if (!chatRooms.has(roomId)) {
                     return ws.send(JSON.stringify({ type: 'error', message: 'room not found' }));
                 }
 
                 const room = chatRooms.get(roomId);
+
+                for (const [userIp, user] of room.users.entries()) {
+                    if (user.userName === userName && userIp !== ip) {
+                        return ws.send(JSON.stringify({ type: 'error', message: 'username already taken' }));
+                    }
+                }
+
                 if (room.deletionTimeout) {
                     clearTimeout(room.deletionTimeout);
                     room.deletionTimeout = null;
@@ -81,20 +100,40 @@ wss.on('connection', (ws, req) => {
                         }));
                     }
                 });
+
+                ws.send(JSON.stringify({ type: 'roomRenamed', newName: room.name }));
                 break;
 
             case 'message':
                 if (roomId && chatRooms.has(roomId)) {
-                    const room = chatRooms.get(roomId);
-                    const timestamp = new Date().toISOString();
-                    const message = { userName, content: data.content, timestamp };
-                    room.messages.push(message);
+                    // check length of message so its not *too* big
+                    if (data.content.length > 1000) {
+                        return  ws.send(JSON.stringify({ type: 'error', message: 'message too long' }));
+                    }
 
-                    room.users.forEach((user) => {
-                        if (user.ws.readyState === WebSocket.OPEN) {
-                            user.ws.send(JSON.stringify({ type: 'message', ...message }));
-                        }
-                    });
+                    const room = chatRooms.get(roomId);
+                    const now = Date.now();
+                    
+                    room.userMsgs = room.userMsgs || new Map();
+                    const userMsgs = room.userMsgs.get(ip) || [];
+                    const recentMsgs = userMsgs.filter(t => now - t < RATE.WINDOW);
+            
+                    if (recentMsgs.length >= RATE.PER_USER) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
+                        return;
+                    }
+                    recentMsgs.push(now);
+                    room.userMsgs.set(ip, recentMsgs);
+
+                    const msg = { 
+                        userName, 
+                        content: data.content, 
+                        timestamp: new Date().toISOString() 
+                    };
+                    room.messages.push(msg);
+            
+                    room.users.forEach(u => u.ws.readyState === WebSocket.OPEN && 
+                        u.ws.send(JSON.stringify({ type: 'message', ...msg })));
                 }
                 break;
 

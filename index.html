@@ -6,544 +6,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AssChat</title>
 
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-    <script>
-        function sunmoon() {
-            const htmlElement = document.documentElement;
-            const isDark = htmlElement.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        }
 
-        window.onload = function() {
-            const isDark = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            }
-        }
-    </script>
-    <style>
-        .glassmorphic {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .dark .glassmorphic {
-            background: rgba(0, 0, 0, 0.4);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .fade-in {
-            animation: fadeIn 1s ease forwards;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .chat-container {
-            display: flex;
-            width: 95vw;
-            height: 85vh;
-            max-width: none;
-            padding: 2.5vh 0;
-        }
-
-        .chat-area {
-            flex: 4;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #4B5563;
-            position: relative;
-        }
-
-        .dark .chat-area {
-            border-right-color: #4B5563;
-        }
-
-        .message-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            scrollbar-width: thin;
-            scrollbar-color: #4F46E5 #E5E7EB;
-        }
-
-        .message-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .message-container::-webkit-scrollbar-track {
-            background: #E5E7EB;
-        }
-
-        .message-container::-webkit-scrollbar-thumb {
-            background-color: #4F46E5;
-            border-radius: 4px;
-        }
-
-        .dark .message-container::-webkit-scrollbar-track {
-            background: #374151;
-        }
-
-        .dark .message-container::-webkit-scrollbar-thumb {
-            background-color: #6366F1;
-        }
-
-        .message {
-            max-width: 70%;
-            margin-bottom: 0.75rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 1rem;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: flex-start;
-            animation: messageAppear 0.3s ease-out;
-        }
-
-        .message.sent {
-            align-self: flex-end;
-            background-color: #3B82F6;
-            color: white;
-        }
-
-        .message.received {
-            align-self: flex-start;
-            background-color: #E5E7EB;
-            color: #1F2937;
-        }
-
-        .dark .message.received {
-            background-color: #374151;
-            color: #D1D5DB;
-        }
-
-        .message-avatar {
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 50%;
-            background-color: #4F46E5;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 0.75rem;
-            flex-shrink: 0;
-        }
-
-        .message.sent .message-avatar {
-            display: none;
-        }
-
-        .message-content {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .message-content p {
-            margin-bottom: 0.5rem;
-        }
-
-        .message-content pre {
-            background-color: #f0f0f0;
-            padding: 10px;
-            border-radius: 5px;
-            overflow-x: auto;
-            margin-bottom: 0.5rem;
-        }
-
-        .dark .message-content pre {
-            background-color: #2d3748;
-        }
-
-        .message-content code {
-            font-family: monospace;
-            font-size: 0.9em;
-        }
-
-        .message-content ul,
-        .message-content ol {
-            margin-left: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .message-content blockquote {
-            border-left: 3px solid #718096;
-            padding-left: 1rem;
-            margin-left: 0.5rem;
-            margin-bottom: 0.5rem;
-            color: #718096;
-        }
-
-        .dark .message-content blockquote {
-            border-left-color: #a0aec0;
-            color: #a0aec0;
-        }
-
-        .user-list-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 0.75rem;
-            overflow-y: auto;
-            min-width: 300px;
-            border-left: 1px solid #4B5563;
-            scrollbar-width: thin;
-            scrollbar-color: #4F46E5 #E5E7EB;
-        }
-
-        .user-list-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .user-list-container::-webkit-scrollbar-track {
-            background: #E5E7EB;
-        }
-
-        .user-list-container::-webkit-scrollbar-thumb {
-            background-color: #4F46E5;
-            border-radius: 4px;
-        }
-
-        .dark .user-list-container::-webkit-scrollbar-track {
-            background: #374151;
-        }
-
-        .dark .user-list-container::-webkit-scrollbar-thumb {
-            background-color: #6366F1;
-        }
-
-        .user-list {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .user-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            background-color: transparent;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-        }
-
-        .user-item:hover {
-            background-color: #F3F4F6;
-            transform: translateX(5px);
-        }
-
-        .dark .user-item:hover {
-            background-color: #374151;
-        }
-
-        .user-avatar {
-            width: 3.5rem;
-            height: 3.5rem;
-            border-radius: 50%;
-            background-color: #4F46E5;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 0.75rem;
-        }
-
-        .user-info {
-            display: flex;
-            flex-direction: column;
-            margin-left: 0.75rem;
-        }
-
-        .user-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        .user-status {
-            font-size: 0.9rem;
-            color: #6B7280;
-        }
-
-        .dark .user-status {
-            color: #9CA3AF;
-        }
-
-
-        .input-container {
-            display: flex;
-            margin-top: 1rem;
-            padding: 0 1rem;
-            position: relative;
-            align-items: center;
-            position: relative;
-        }
-
-        #message-input {
-            flex-grow: 1;
-            padding: 0.75rem 1rem;
-            border: 2px solid #E5E7EB;
-            border-radius: 9999px;
-            outline: none;
-            background-color: #F9FAFB;
-            color: #1F2937;
-            font-size: 1rem;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            min-height: 2.5rem;
-            max-height: 10rem;
-            overflow-y: auto;
-            resize: vertical;
-        }
-
-        #message-input:focus {
-            border-color: #4F46E5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-        }
-
-        .dark #message-input {
-            background-color: #374151;
-            color: #D1D5DB;
-            border-color: #4B5563;
-        }
-
-        #send-btn {
-            position: absolute;
-            right: 1.5rem;
-            background-color: #4F46E5;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 2.5rem;
-            height: 2.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-        }
-
-        #send-btn:hover {
-            background-color: #4338CA;
-            transform: scale(1.05);
-        }
-
-        #send-btn:active {
-            transform: scale(0.95);
-        }
-
-        #send-btn svg {
-            width: 1.25rem;
-            height: 1.25rem;
-        }
-
-        #chat-container>div:last-child {
-            margin-top: 0.5rem;
-        }
-
-        #particles-js {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            z-index: -1;
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-        }
-
-        .toast {
-            background-color: #333;
-            color: #fff;
-            padding: 12px 20px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease-in-out;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .toast.hide {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-
-        .toast-content {
-            margin-right: 10px;
-        }
-
-        .toast-close {
-            cursor: pointer;
-            font-size: 18px;
-        }
-
-        .toast-error {
-            background-color: #f44336;
-        }
-
-        .toast-success {
-            background-color: #4caf50;
-        }
-
-        .toast-warning {
-            background-color: #ff9800;
-        }
-
-        .toast-info {
-            background-color: #2196f3;
-        }
-
-        #reach-down-btn {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(-10px);
-            background-color: #4F46E5;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: opacity 0.3s ease, transform 0.2s ease;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        #reach-down-btn.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        #reach-down-btn:hover {
-            background-color: #4338CA;
-        }
-
-        @keyframes messageAppear {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        #invite-modal {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            opacity: 0;
-            transform: scale(0.9);
-        }
-
-        #invite-modal.show {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        #settings-modal {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            opacity: 0;
-            transform: scale(0.9);
-        }
-
-        #settings-modal.show {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .message.sent .text-xs {
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .message-content u {
-            text-decoration: underline;
-        }
-    </style>
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center relative">
 
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center relative">
+
+    <!-- Particles.js background -->
     <div id="particles-js"></div>
 
-
-    <div id="join-container" class="glassmorphic max-w-lg mx-auto p-6 rounded-lg shadow-lg dark:text-gray-300 fade-in relative z-10">
+    <!-- Join Room Container -->
+    <div id="join-container" class="glassmorphic max-w-lg mx-auto p-6 rounded-lg shadow-lg text-gray-300 fade-in relative z-10">
         <h2 class="text-2xl font-bold mb-4 text-center">Join AssChat</h2>
-        <input type="text" id="username-input" placeholder="username here" class="w-full p-3 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring focus:ring-indigo-500">
+        <input type="text" id="username-input" placeholder="username here" class="w-full p-3 mb-4 rounded-lg border border-gray-600 bg-gray-800 focus:outline-none focus:ring focus:ring-indigo-500">
         <button id="create-room-btn" class="w-full p-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">
-
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 24 24" stroke="currentColor" fill="none">
                 <path d="M12 5V19M5 12H19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
             Create New Room
         </button>
-        <br>
-        <br>
-
+        <br><br>
         <center>
             <div class="text-sm text-gray-500">by: darian, cyx, slqnt</div>
         </center>
     </div>
-    <div id="chat-container" class="glassmorphic mx-auto p-4 rounded-lg shadow-lg dark:text-gray-300 fade-in relative z-10" style="display:none;">
+
+    <!-- Chat Container -->
+    <div id="chat-container" class="glassmorphic mx-auto p-4 rounded-lg shadow-lg text-gray-300 fade-in relative z-10" style="display:none;">
+        <!-- Chat Header -->
         <div class="flex justify-between items-center mb-4">
             <h2 id="room-name" class="text-3xl font-bold">AssChat Room</h2>
             <div class="flex items-center">
                 <button id="invite-btn" class="mr-4 p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors">
                     <i data-lucide="user-plus"></i>
                 </button>
-                <button id="settings-btn" class="mr-4 p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                <button id="settings-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
                     <i data-lucide="settings"></i>
-                </button>
-                <button onclick="sunmoon()" class="p-2 rounded-full bg-indigo-500 text-white dark:bg-gray-700 hover:bg-indigo-600 dark:hover:bg-gray-600 transition-colors">
-                    <i id="theme-icon" data-lucide="lightbulb"></i>
                 </button>
             </div>
         </div>
+        <!-- Chat Area -->
         <div class="chat-container">
             <div class="chat-area">
                 <div id="chat-messages" class="message-container"></div>
                 <div class="input-container">
-                    <button id="reach-down-btn">
-                        <i data-lucide="chevrons-down"></i>
-                    </button>
-                    <input type="text" id="message-input" placeholder="Type your message here">
+                    <textarea id="message-input" placeholder="Type your message here" rows="1"></textarea>
                     <button id="send-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -552,8 +69,7 @@
                     </button>
                 </div>
             </div>
-
-
+            <!-- User List -->
             <div class="user-list-container">
                 <h3 class="font-semibold mb-3 text-xl">Users Online</h3>
                 <div id="user-list" class="user-list"></div>
@@ -561,39 +77,42 @@
         </div>
         <div id="room-settings" class="mt-6"></div>
     </div>
+
+    <!-- Toast Container for Notifications -->
     <div id="toast-container" class="toast-container"></div>
+
+    <!-- Invite Modal -->
     <div id="invite-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-            <div id="invite-modal-content">
-            </div>
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div id="invite-modal-content"></div>
         </div>
     </div>
 
+    <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
             <div id="settings-modal-content">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">Room Settings</h3>
-                    <button id="close-settings-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                    <button id="close-settings-modal" class="text-gray-300 hover:text-gray-100">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
-                <input type="text" id="room-name-input" placeholder="New room name" class="w-full p-2 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+                <input type="text" id="room-name-input" placeholder="New room name" class="w-full p-2 mb-4 rounded-lg border border-gray-600 bg-gray-800">
                 <button id="rename-room-btn" class="w-full p-2 mb-4 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Rename Room</button>
-                <input type="number" id="timeout-input" placeholder="Timeout (minutes)" class="w-full p-2 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+                <input type="number" id="timeout-input" placeholder="Timeout (minutes)" class="w-full p-2 mb-4 rounded-lg border border-gray-600 bg-gray-800">
                 <button id="set-timeout-btn" class="w-full p-2 mb-4 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Set Close Timeout</button>
                 <button id="close-room-btn" class="w-full p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors">Close Room</button>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.7/purify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
-        // save lines :pray:
-        let socket, roomId, userName, sharedKey, owner
+        // global variables
+        let socket, roomId, userName, sharedKey, owner, ping
+        const users = new Map();
 
+        // dom elements
         const joinContainer = document.getElementById('join-container');
         const chatContainer = document.getElementById('chat-container');
         const createRoomBtn = document.getElementById('create-room-btn');
@@ -602,116 +121,34 @@
         const messageInput = document.getElementById('message-input');
         const chatMessages = document.getElementById('chat-messages');
         const userList = document.getElementById('user-list');
-        const roomSettings = document.getElementById('room-settings');
         const toastContainer = document.getElementById('toast-container');
         const inviteBtn = document.getElementById('invite-btn');
         const inviteModal = document.getElementById('invite-modal');
         const inviteModalContent = document.getElementById('invite-modal-content');
-        const buttonsett = document.getElementById('settings-btn');
-        const settingspop = document.getElementById('settings-modal');
-        const closesettingspop = document.getElementById('close-settings-modal');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsModal = document.getElementById('close-settings-modal');
 
-        inviteBtn.addEventListener('click', () => {
-            inviteModalContent.innerHTML = `
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">Invite Users</h3>
-                <button id="close-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <p class="mb-4">Share this link for users to join you in chat:</p>
-            <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
-                <input id="invite-link" type="text" readonly class="bg-transparent flex-grow mr-2 outline-none" value="${window.location.origin}/?room=${roomId}">
-                <button id="copy-link" class="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition-colors">
-                    <i data-lucide="copy"></i>
-                </button>
-            </div>
-        `;
-            inviteModal.classList.remove('hidden');
-            setTimeout(() => {
-                inviteModal.classList.add('show');
-            }, 10);
+        // event listeners
+        createRoomBtn.addEventListener('click', createRoom);
+        sendBtn.addEventListener('click', sendMessage);
+        inviteBtn.addEventListener('click', showInviteModal);
+        settingsBtn.addEventListener('click', showSettingsModal);
+        closeSettingsModal.addEventListener('click', closeSettingsModalHandler);
+        messageInput.addEventListener('keydown', handleMessageInputKeydown);
+        messageInput.addEventListener('input', autoResizeInput);
+        document.getElementById('rename-room-btn').addEventListener('click', renameRoom);
+        document.getElementById('set-timeout-btn').addEventListener('click', setRoomTimeout);
+        document.getElementById('close-room-btn').addEventListener('click', closeRoom);
 
-            // @kite refresher setup
-            document.getElementById('close-modal').addEventListener('click', closeInviteModal);
-            const copyLinkBtn = document.getElementById('copy-link');
-            if (copyLinkBtn) {
-                copyLinkBtn.addEventListener('click', () => {
-                    const inviteLinkInput = document.getElementById('invite-link');
-                    inviteLinkInput.select();
-                    document.execCommand('copy');
-                    popnotif('Link copied to clipboard', 'success');
-                });
-            }
-
-            lucide.createIcons();
-        });
-
-        function closeInviteModal() {
-            inviteModal.classList.remove('show');
-            inviteModal.addEventListener('transitionend', () => {
-                inviteModal.classList.add('hidden');
-            }, {
-                once: true
-            });
-        }
-
-        inviteModal.addEventListener('click', (e) => {
-            if (e.target === inviteModal) {
-                closeInviteModal();
-            }
-        });
-
-        function popnotif(message, type = 'info', duration = 3000) {
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.innerHTML = `
-                <div class="toast-content">${message}</div>
-                <span class="toast-close">&times;</span>
-            `;
-            toastContainer.appendChild(toast);
-            toast.offsetHeight;
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 10);
-            setTimeout(() => {
-                offnoti(toast);
-            }, duration);
-            toast.querySelector('.toast-close').addEventListener('click', () => {
-                offnoti(toast);
-            });
-        }
-
-        function offnoti(toast) {
-            toast.classList.add('hide');
-            toast.addEventListener('transitionend', () => {
-                toast.remove();
-            });
-        }
-
-        function encryptMessage(message, sharedKey) {
-            const deadData = CryptoJS.lib.WordArray.random(16).toString();
-            const randomSeed = CryptoJS.lib.WordArray.random(16).toString();
-            const combinedKey = CryptoJS.SHA256(sharedKey + randomSeed).toString();
-            const encrypted = CryptoJS.AES.encrypt(deadData + message + deadData, combinedKey).toString();
-            return randomSeed + encrypted;
-        }
-        
-        function decryptMessage(ciphertext, sharedKey) {
-            const randomSeed = ciphertext.substr(0, 32);
-            const encrypted = ciphertext.substr(32);
-            const combinedKey = CryptoJS.SHA256(sharedKey + randomSeed).toString();
-            const decrypted = CryptoJS.AES.decrypt(encrypted, combinedKey).toString(CryptoJS.enc.Utf8);
-            return decrypted.substr(32, decrypted.length - 64);
-        }
-
+        // WebSocket functions
         function connectWebSocket() {
             return new Promise((resolve, reject) => {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 socket = new WebSocket(`${protocol}//${window.location.host}`);
 
                 socket.onopen = () => {
-                    console.log('connected to asschat server');
+                    console.log('connected to AssChat server');
                     setupSocketHandlers();
                     resolve();
                 };
@@ -726,67 +163,25 @@
                     location.href = "/";
                 };
 
-                // pinger to prevent closing
+                // pinger
                 setInterval(() => {
                     if (socket.readyState === WebSocket.OPEN) {
                         socket.send(JSON.stringify({ type: 'ping' }));
+                        ping = Date.now();
+                        console.log("ping")
                     }
                 }, 10000);
             });
         }
-        createRoomBtn.addEventListener('click', async () => {
-            userName = usernameInput.value.trim();
-            if (!userName) return popnotif('Username is empty', 'warning');
-            localStorage.setItem('username', userName);
-            try {
-                await connectWebSocket();
-                socket.send(JSON.stringify({
-                    type: 'create'
-                }));
-            } catch (error) {
-                popnotif('Failed to connect to AssChat server', 'error');
-            }
-        });
-
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                if (e.shiftKey) {
-                    return;
-                } else {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            }
-        });
-
-        function sendMessage() {
-            const message = messageInput.value.trim();
-            if (message && (socket.readyState === WebSocket.OPEN)) {
-                socket.send(JSON.stringify({
-                    type: 'message',
-                    content: encryptMessage(message)
-                }));
-                messageInput.value = '';
-                messageInput.style.height = 'auto';
-            }
-        }
-
-        function autoResizeInput() {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = (messageInput.scrollHeight) + 'px';
-        }
-        messageInput.addEventListener('input', autoResizeInput);
 
         function setupSocketHandlers() {
             socket.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                console.log(data);
                 switch (data.type) {
+                    case 'pong':
+                        console.log(`ping: ${Date.now() - ping}ms`);
+                        ping = null
+                        break;
                     case 'roomCreated':
                         owner = true;
                         roomId = data.roomId;
@@ -803,23 +198,22 @@
                         chatContainer.style.display = 'block';
                         updateUserList(data.users);
                         data.messages.forEach(msg => showmsg(msg.userName, decryptMessage(msg.content), new Date(msg.timestamp)));
-
-                        // settings stuff
+            
                         owner = data.isCreator || data.users.length === 1;
-                        buttonsett.style.display = owner ? 'inline-block' : 'none';
+                        settingsBtn.style.display = owner ? 'inline-block' : 'none';
                         break;
                     case 'message':
                         showmsg(data.userName, decryptMessage(data.content), new Date(data.timestamp));
                         break;
                     case 'userJoined':
                         updateUserList(data.users);
-                        break
+                        break;
                     case 'userLeft':
                         updateUserList(data.users);
                         break;
                     case 'roomClosed':
                         popnotif('Room closed', 'error');
-                        window.location.href = '/';
+                        window.history.pushState(null, '', `/`);
                         break;
                     case 'roomRenamed':
                         document.getElementById('room-name').textContent = data.newName;
@@ -835,97 +229,23 @@
             };
         }
 
-        function showmsg(user, content, timestamp) {
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${user === userName ? 'sent' : 'received'}`;
-            const sanitizedContent = DOMPurify.sanitize(marked.parse(content));
-
-            if (user === userName) {
-                messageElement.innerHTML = `
-                    <div class="message-content">
-                        <div>${sanitizedContent}</div>
-                        <span class="text-xs text-gray-500 mt-1">${timestamp.toLocaleTimeString()}</span>
-                    </div>
-                `;
-            } else {
-                messageElement.innerHTML = `
-                    <div class="message-avatar">${user.charAt(0).toUpperCase()}</div>
-                    <div class="message-content">
-                        <div class="flex items-center mb-1">
-                            <span class="font-bold">${user}</span>
-                            <span class="text-xs text-gray-500 ml-2">${timestamp.toLocaleTimeString()}</span>
-                        </div>
-                        <div>${sanitizedContent}</div>
-                    </div>
-                `;
-            }
-            chatMessages.appendChild(messageElement);
-            if (chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 100) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+        // room functions
+        async function createRoom() {
+            userName = usernameInput.value.trim();
+            if (!userName) return popnotif('Username is empty', 'warning');
+            localStorage.setItem('username', userName);
+            try {
+                await connectWebSocket();
+                socket.send(JSON.stringify({ type: 'create' }));
+            } catch (error) {
+                popnotif('Failed to connect to AssChat server', 'error');
             }
         }
 
-        function updateUserList(users) {
-            userList.innerHTML = '';
-            users.forEach(user => {
-                const userElement = document.createElement('div');
-                userElement.className = 'user-item';
-                userElement.innerHTML = `
-                    <div class="user-avatar">${user.charAt(0).toUpperCase()}</div>
-                    <div class="user-info">
-                        <span class="user-name">${user}${user === userName ? ' (You)' : ''}</span>
-                        <span class="user-status">Online</span>
-                    </div>
-                `;
-                userList.appendChild(userElement);
-            });
-        }
-
-        function renameRoom() {
-            const newName = document.getElementById('room-name-input').value.trim();
-            if (newName) {
-                socket.send(JSON.stringify({
-                    type: 'renameRoom',
-                    newName
-                }));
-            }
-        }
-
-        function closeRoom() {
-            socket.send(JSON.stringify({
-                type: 'closeRoom'
-            }));
-        }
-
-        function setClose() {
-            const timeout = document.getElementById('timeout-input').value;
-            if (timeout) {
-                socket.send(JSON.stringify({
-                    type: 'setTimeout',
-                    timeout
-                }));
-            }
-        }
         async function joinRoom() {
             if (!userName) {
-                // ask for username
-                joinContainer.innerHTML = `
-                    <h2 class="text-2xl font-bold mb-4">Join Room</h2>
-                    <input type="text" id="username-input" placeholder="Enter your username" class="w-full p-3 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
-                    <button id="join-room-btn" class="w-full p-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Join Room</button>
-                `;
-
-                document.getElementById('join-room-btn').addEventListener('click', () => {
-                    userName = document.getElementById('username-input').value.trim();
-                    if (userName) {
-                        localStorage.setItem('username', userName);
-                        window.location.reload();
-                    } else {
-                        popnotif('Please enter a username', 'warning');
-                    }
-                });
+                showUsernamePrompt();
             } else {
-                // connect and join
                 try {
                     await connectWebSocket();
                     socket.send(JSON.stringify({
@@ -939,69 +259,272 @@
             }
         }
 
+        function showUsernamePrompt() {
+            joinContainer.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4">Join Room</h2>
+                <input type="text" id="username-input" placeholder="Enter your username" class="w-full p-3 mb-4 rounded-lg border border-gray-600 bg-gray-800">
+                <button id="join-room-btn" class="w-full p-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">Join Room</button>
+            `;
 
+            document.getElementById('join-room-btn').addEventListener('click', () => {
+                userName = document.getElementById('username-input').value.trim();
+                if (userName) {
+                    localStorage.setItem('username', userName.substring(0, 20));
+                    window.location.reload();
+                } else {
+                    popnotif('Please enter a username', 'warning');
+                }
+            });
+        }
+
+        function renameRoom() {
+            const newName = document.getElementById('room-name-input').value.trim();
+            if (newName) {
+                socket.send(JSON.stringify({
+                    type: 'renameRoom',
+                    newName
+                }));
+            }
+            closeSettingsModalHandler();
+        }
+
+        function setRoomTimeout() {
+            const timeout = document.getElementById('timeout-input').value;
+            if (timeout) {
+                socket.send(JSON.stringify({
+                    type: 'setTimeout',
+                    timeout
+                }));
+            }
+            closeSettingsModalHandler();
+        }
+
+        function closeRoom() {
+            socket.send(JSON.stringify({
+                type: 'closeRoom'
+            }));
+            closeSettingsModalHandler();
+        }
+
+        // msg functions
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    content: encryptMessage(message)
+                }));
+                messageInput.value = '';
+                autoResizeInput();
+            }
+        }
+
+        function showmsg(user, content, timestamp) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${user === userName ? 'sent' : 'received'}`;
+            
+            content = content.replace(/\n{10,}/g, '\n\n\n\n\n\n\n\n\n');
+            content = content.replace(/\n/g, '<br>');
+            
+            const sanitizedContent = DOMPurify.sanitize(marked.parse(content));
+
+            if (user === userName) {
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-text">${sanitizedContent}</div>
+                        <span class="text-xs text-gray-500 mt-1">${timestamp.toLocaleTimeString()}</span>
+                    </div>
+                `;
+            } else {
+                messageElement.innerHTML = `
+                    <div class="message-avatar">${user.charAt(0).toUpperCase()}</div>
+                    <div class="message-content">
+                        <div class="flex items-center mb-1">
+                            <span class="font-bold message-username">${user}</span>
+                            <span class="text-xs text-gray-500 ml-2">${timestamp.toLocaleTimeString()}</span>
+                        </div>
+                        <div class="message-text">${sanitizedContent}</div>
+                    </div>
+                `;
+            }
+            chatMessages.appendChild(messageElement);
+            (user === userName) && (chatMessages.scrollTop = chatMessages.scrollHeight)
+        }
+
+        // encryption functions
+        function encryptMessage(message) {
+            const deadData = CryptoJS.lib.WordArray.random(4).toString();
+            const salt = CryptoJS.lib.WordArray.random(8).toString();
+            const iv = CryptoJS.lib.WordArray.random(8).toString();
+            const combinedKey = CryptoJS.PBKDF2(sharedKey, salt, { keySize: 256/32, iterations: 1000 });
+            const encrypted = CryptoJS.AES.encrypt(deadData + message + deadData, combinedKey, { iv: CryptoJS.enc.Hex.parse(iv) }).toString();
+            return salt + iv + encrypted;
+        }
+        
+        function decryptMessage(ciphertext) {
+            const salt = ciphertext.substr(0, 16);
+            const iv = ciphertext.substr(16, 16);
+            const encrypted = ciphertext.substr(32);
+            const combinedKey = CryptoJS.PBKDF2(sharedKey, salt, { keySize: 256/32, iterations: 1000 });
+            const decrypted = CryptoJS.AES.decrypt(encrypted, combinedKey, { iv: CryptoJS.enc.Hex.parse(iv) });
+            const fullMessage = decrypted.toString(CryptoJS.enc.Utf8);
+            return fullMessage.substr(8, fullMessage.length - 16);
+        }
+
+        // UI functions
+        function updateUserList(currentUsers) {
+            userList.innerHTML = '';
+            const currentUserElement = document.createElement('div');
+            
+            currentUsers.forEach(user => users.set(user, 'Online'));
+            users.forEach((status, user) => {
+                if (!currentUsers.includes(user)) users.set(user, 'Offline');
+                const userElement = document.createElement('div');
+                userElement.className = 'user-item';
+                userElement.innerHTML = `
+                    <div class="user-avatar ${user === userName ? 'current-user' : ''}">
+                        ${user.split(' ').map(w => w[0].toUpperCase()).join('').slice(0, 2)}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">${user}</span>
+                        <span class="user-status">${users.get(user)}</span>
+                    </div>
+                `;
+                
+                if (user === userName) currentUserElement.appendChild(userElement);
+                else userList.appendChild(userElement);
+            });
+        
+            userList.prepend(currentUserElement);
+        }
+        
+
+        function popnotif(message, type = 'info', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">${message}</div>
+                <span class="toast-close">&times;</span>
+            `;
+            toastContainer.appendChild(toast);
+            toast.offsetHeight;
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            }, duration);
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            });
+        }
+
+        function autoResizeInput() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = (messageInput.scrollHeight) + 'px';
+        }
+
+        // handlers
+        function handleMessageInputKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // init
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
         if (roomParam) {
             roomId = roomParam;
-            userName = localStorage.getItem('username') || '';
+            userName = localStorage.getItem('username') || null
             joinRoom();
         }
 
-        buttonsett.addEventListener('click', () => {
-            settingspop.classList.remove('hidden');
-            setTimeout(() => {
-                settingspop.classList.add('show');
-            }, 10);
+        inviteModal.addEventListener('click', (e) => {
+            if (e.target === inviteModal) {
+                inviteModal.classList.remove('show');
+                inviteModal.addEventListener('transitionend', () => {
+                    inviteModal.classList.add('hidden');
+                }, { once: true });
+            }
         });
 
-        function closesettingspopHandler() {
-            settingspop.classList.remove('show');
-            settingspop.addEventListener('transitionend', () => {
-                settingspop.classList.add('hidden');
-            }, {
-                once: true
-            });
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+                settingsModal.addEventListener('transitionend', () => {
+                    settingsModal.classList.add('hidden');
+                }, { once: true });
+            }
+        });
+
+        function showInviteModal() {
+            inviteModalContent.innerHTML = `
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Invite Users</h3>
+                <button id="close-invite-modal" class="text-gray-300 hover:text-gray-100">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <p class="mb-4">Share this link for users to join you in chat:</p>
+            <div class="flex items-center bg-gray-700 rounded-lg p-2">
+                <input id="invite-link" type="text" readonly class="bg-transparent flex-grow mr-2 outline-none" value="${window.location.origin}/?room=${roomId}">
+                <button id="copy-link" class="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition-colors">
+                    <i data-lucide="copy"></i>
+                </button>
+            </div>
+            `;
+            inviteModal.classList.remove('hidden');
+            setTimeout(() => {
+                inviteModal.classList.add('show');
+            }, 10);
+
+            document.getElementById('close-invite-modal').addEventListener('click', closeInviteModal);
+            const copyLinkBtn = document.getElementById('copy-link');
+            if (copyLinkBtn) {
+                copyLinkBtn.addEventListener('click', () => {
+                    const inviteLinkInput = document.getElementById('invite-link');
+                    inviteLinkInput.select();
+                    document.execCommand('copy');
+                    popnotif('Link copied to clipboard', 'success');
+                });
+            }
+
+            lucide.createIcons();
         }
 
-        closesettingspop.addEventListener('click', closesettingspopHandler);
+        function closeInviteModal() {
+            inviteModal.classList.remove('show');
+            inviteModal.addEventListener('transitionend', () => {
+                inviteModal.classList.add('hidden');
+            }, { once: true });
+        }
 
-        settingspop.addEventListener('click', (e) => {
-            if (e.target === settingspop) {
-                closesettingspopHandler();
-            }
-        });
+        function showSettingsModal() {
+            settingsModal.classList.remove('hidden');
+            setTimeout(() => {
+                settingsModal.classList.add('show');
+            }, 10);
+        }
 
-        document.getElementById('rename-room-btn').addEventListener('click', () => {
-            renameRoom();
-            closesettingspopHandler();
-        });
+        function closeSettingsModalHandler() {
+            settingsModal.classList.remove('show');
+            settingsModal.addEventListener('transitionend', () => {
+                settingsModal.classList.add('hidden');
+            }, { once: true });
+        }
 
-        document.getElementById('set-timeout-btn').addEventListener('click', () => {
-            setClose();
-            closesettingspopHandler();
+        document.addEventListener('DOMContentLoaded', () => {
+            messageInput.style.height = 'auto';
+            lucide.createIcons();
         });
-
-        document.getElementById('close-room-btn').addEventListener('click', () => {
-            closeRoom();
-            closesettingspopHandler();
-        });
-        const quickscroll = document.getElementById('reach-down-btn');
-        chatMessages.addEventListener('scroll', () => {
-            const isScrolledUp = chatMessages.scrollTop < chatMessages.scrollHeight - chatMessages.clientHeight - 100;
-            if (isScrolledUp) {
-                quickscroll.classList.add('visible');
-            } else {
-                quickscroll.classList.remove('visible');
-            }
-        });
-        quickscroll.addEventListener('click', () => {
-            chatMessages.scrollTo({
-                top: chatMessages.scrollHeight,
-                behavior: 'smooth'
-            });
-        });
-        lucide.createIcons();
     </script>
 </body>
 
