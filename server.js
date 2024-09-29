@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = false
+const debug = true
 
 const PORT = process.env.PORT || 80;
 // limit rules
@@ -44,7 +44,7 @@ wss.on('connection', (ws, req) => {
                 ws.send(JSON.stringify({ type: 'pong', message: "hello from ass (chat) :3"}));
                 break
             case 'create':
-                if (userIPs.has(ip)) {
+                if (userIPs.get(ip) >= 2) {
                     ws.send(JSON.stringify({ type: 'error', message: 'ladies, ladies, one room at a time' }));
                     return;
                 }
