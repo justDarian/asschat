@@ -72,10 +72,16 @@ wss.on('connection', (ws, req) => {
 
                 const room = chatRooms.get(roomId);
 
+                // check username if taken
                 for (const [userIp, user] of room.users.entries()) {
                     if (user.userName === userName && userIp !== ip) {
                         return ws.send(JSON.stringify({ type: 'error', message: 'username already taken' }));
                     }
+                }
+
+                // anti spam muahahah
+                if (room.users.has(ip)) {
+                    return ws.send(JSON.stringify({ type: 'error', message: 'already joined this room' }));
                 }
 
                 if (room.deletionTimeout) {
