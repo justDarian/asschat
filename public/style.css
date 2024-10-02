@@ -412,11 +412,24 @@ html, body, * {
 }
 
 .markdown-content {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    line-height: 1.5;
 }
 
-.markdown-content pre {
-    white-space: pre-wrap;
-    word-wrap: break-word;
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    margin: 10px 0;
+}
+
+.markdown-content p {
+    margin: 10px 0;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin: 10px 0 10px 20px;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #ccc;
+    padding-left: 10px;
+    margin: 10px 0;
+    color: #666;
 }

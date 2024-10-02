@@ -27,7 +27,7 @@ function getClientIp(req) {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, "public", debug ? 'index.html' : 'index2.html'));
 });
-app.get(/.*\.(css|js)$/, (req, res) => {
+app.get(/.*\.(css|js|mp3)$/, (req, res) => {
     res.sendFile(path.join(__dirname, "public", req.path));
 });
 
