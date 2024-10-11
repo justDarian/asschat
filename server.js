@@ -28,7 +28,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, "public", debug ? 'index.html' : 'index2.html'));
 });
 app.get(/.*\.(css|js|mp3)$/, (req, res) => {
-    res.sendFile(path.join(__dirname, "public", req.path));
+    const filePath = path.join(__dirname, "public", req.path);
+    
+    if (!debug && path.basename(filePath).toLowerCase().includes('debug')) {
+        return res.status(404)
+    }
+    
+    res.sendFile(filePath);
 });
 
 wss.on('connection', (ws, req) => {
@@ -41,7 +47,7 @@ wss.on('connection', (ws, req) => {
 
         switch (data.type) {
             case 'ping':
-                ws.send(JSON.stringify({ type: 'pong', message: "hello from ass (chat) :3"}));
+                ws.send(JSON.stringify({ type: 'pong', message: "pong"}));
                 break
             case 'create':
                 if (userIPs.get(ip) >= 2) {
@@ -95,7 +101,8 @@ wss.on('connection', (ws, req) => {
                     userName,
                     messages: room.messages,
                     sharedKey: room.sharedKey,
-                    users: Array.from(room.users.values()).map(u => u.userName)
+                    users: Array.from(room.users.values()).map(u => u.userName),
+                    isCreator: room.creator === ip
                 }));
 
                 room.users.forEach((user) => {
