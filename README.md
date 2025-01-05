@@ -31,6 +31,6 @@ AssChat is a super secure chat application designed to ensure privacy and securi
 
 5. **Start the Application**:
 
-   npm start
+   node server.js
 
    The application will run at `http://localhost:80` unless process.ENV.port has been changed
