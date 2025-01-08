@@ -23,10 +23,8 @@ const closeSettingsModal = document.getElementById('close-settings-modal');
 function escape(input) {
     if (typeof input !== 'string') input = String(input);
     return input
-        .replace(/<script\b[^>]*>(.*?)<\/script>/gi, '')
-        .replace(/\bon\w+\s*=\s*(['"]).*?\1/gi, '')
-        .replace(/\b(href|src)\s*=\s*(['"])\s*(javascript|data|vbscript):.*?\2/gi, '')
-        .replace(/\bstyle\s*=\s*(['"]).*?\1/gi, '');
+        .replace(/<[^>]*>/g, 'HTML NOT ALLOWED')
+        .replace(/\b(href|src|style)\s*=\s*(['"])(javascript|data|vbscript):.*?\2/gi, 'XSS PREVENTED')
 }
 
 // event listeners
