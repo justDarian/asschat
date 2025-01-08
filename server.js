@@ -37,11 +37,14 @@ wss.on('connection', (ws, req) => {
     let userName = null;
 
     ws.on('message', (message) => {
-        const data = JSON.parse(message);
+        let data;
+        try {
+            data = JSON.parse(message)
+        } catch () {return}
 
         switch (data.type) {
             case 'ping':
-                ws.send(JSON.stringify({ type: 'pong', message: "pong"}));
+                ws.send(JSON.stringify({ type: 'pong', message: "hello from AssChat websocket server!! :3"}));
                 break
             case 'create':
                 if (userIPs.get(ip) >= 2) {
