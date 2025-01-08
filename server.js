@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = true
+const debug = false
 
 const PORT = process.env.PORT || 80;
 // limit rules
