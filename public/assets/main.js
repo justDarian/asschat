@@ -22,23 +22,11 @@ const closeSettingsModal = document.getElementById('close-settings-modal');
 // xss remover thing credits to someone on stackoverflow
 function escape(input) {
     if (typeof input !== 'string') input = String(input);
-
     return input
-        .replace(/\n/g, '<br>')         // Convert newlines to <br>
-        .replace(/&/g, '&amp;')        // Encode ampersands
-        .replace(/</g, '&lt;')         // Encode less than
-        .replace(/>/g, '&gt;')         // Encode greater than
-        .replace(/"/g, '&quot;')       // Encode double quotes
-        .replace(/'/g, '&#39;')        // Encode single quotes
-        .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Strip dangerous protocols
-        .replace(/on\w+=".*?"/gi, '')  // Remove inline event handlers with double quotes
-        .replace(/on\w+='.*?'/gi, '')  // Remove inline event handlers with single quotes
-        .replace(/style=".*?"/gi, '')  // Remove inline style attributes
-        .replace(/<script.*?>.*?<\/script>/gi, '') // Strip script tags
-        .replace(/<\/?[^>]+>/g, '')    // Remove any remaining HTML tags
-        .replace(/&#x?([0-9a-f]+);?/gi, (m, code) => isNaN(parseInt(code, 16)) ? m : '') // Allow safe hex entities
-        .replace(/\s+/g, ' ')          // Collapse multiple spaces
-        .trim();                       // Trim whitespace
+        .replace(/<script\b[^>]*>(.*?)<\/script>/gi, '')
+        .replace(/\bon\w+\s*=\s*(['"]).*?\1/gi, '')
+        .replace(/\b(href|src)\s*=\s*(['"])\s*(javascript|data|vbscript):.*?\2/gi, '')
+        .replace(/\bstyle\s*=\s*(['"]).*?\1/gi, '');
 }
 
 // event listeners
