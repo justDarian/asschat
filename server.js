@@ -40,7 +40,7 @@ wss.on('connection', (ws, req) => {
         let data;
         try {
             data = JSON.parse(message)
-        } catch () {return}
+        } catch {return}
 
         switch (data.type) {
             case 'ping':
