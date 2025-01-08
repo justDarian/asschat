@@ -149,10 +149,9 @@ function setupSocketHandlers() {
                     userName,
                     roomId
                 }));
-                window.history.pushState(null, '', `/?room=${roomId}`);
+                window.history.pushState(null, '', `/?room=${roomId}&key=${encodeURIComponent(sharedKey)}`);
                 break;
             case 'joined':
-                sharedKey = data.sharedKey;
                 joinContainer.style.display = 'none';
                 chatContainer.style.display = 'block';
                 updateUserList(data.users);
@@ -197,6 +196,9 @@ async function createRoom() {
     userName = usernameInput.value.trim();
     if (!userName) return popnotif('Username is empty', 'warning');
     localStorage.setItem('username', userName.substring(0, 20));
+    
+    sharedKey = "ASSCHAT_" + crypto.getRandomValues(new Uint8Array(24)).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    
     try {
         await connectWebSocket();
         socket.send(JSON.stringify({
@@ -227,6 +229,12 @@ async function joinRoom() {
     } else {
         try {
             await connectWebSocket();
+            
+            if (!sharedKey) {
+                popnotif('Invalid invite link', 'error');
+                return;
+            }
+
             socket.send(JSON.stringify({
                 type: 'join',
                 userName,
@@ -388,6 +396,9 @@ function handleMessageInputKeydown(e) {
 // init
 const urlParams = new URLSearchParams(window.location.search);
 const roomParam = urlParams.get('room');
+if (urlParams.get('key')) {
+    sharedKey = decodeURIComponent(urlParams.get('key'));
+}
 if (roomParam) {
     roomId = roomParam;
     userName = localStorage.getItem('username') || null
@@ -426,7 +437,7 @@ function showInviteModal() {
     </div>
     <p class="mb-4">Share this link for users to join you in chat:</p>
     <div class="flex items-center bg-gray-700 rounded-lg p-2">
-        <input id="invite-link" type="text" readonly class="bg-transparent flex-grow mr-2 outline-none" value="${window.location.origin}/?room=${roomId}">
+        <input id="invite-link" type="text" readonly class="bg-transparent flex-grow mr-2 outline-none" value="${window.location.origin}/?room=${roomId}&key=${encodeURIComponent(sharedKey)}">
         <button id="copy-link" class="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition-colors">
             <i data-lucide="copy"></i>
         </button>

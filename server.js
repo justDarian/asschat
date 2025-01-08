@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = false
+const debug = true
 
 const PORT = process.env.PORT || 80;
 // limit rules
@@ -52,7 +52,6 @@ wss.on('connection', (ws, req) => {
                 chatRooms.set(roomId, { 
                     users: new Map(), 
                     messages: [], 
-                    sharedKey: "ASSCHAT_PUBKEY_"+crypto.randomBytes(69).toString(), 
                     creator: ip,
                     name: `AssChat Room`,
                     timeout: null,
@@ -94,7 +93,6 @@ wss.on('connection', (ws, req) => {
                     type: 'joined',
                     userName,
                     messages: room.messages,
-                    sharedKey: room.sharedKey,
                     users: Array.from(room.users.values()).map(u => u.userName),
                     isCreator: room.creator === ip
                 }));
