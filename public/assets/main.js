@@ -111,6 +111,11 @@ function connectWebSocket() {
                 console.log("ping packet sent")
             }
         }, 1000 * 20);
+
+        // cutesey welcome
+        let meow = new Date()
+        meow.setHours(4, 20, 0, 0)
+        showmsg("System", "Welcome to AssChat! All of your messages are encrypted and this conversation is fully secure.", meow);
     });
 }
 
@@ -131,6 +136,20 @@ function setupSocketHandlers() {
                     roomId
                 }));
                 window.history.pushState(null, '', `/?room=${roomId}&key=${encodeURIComponent(sharedKey)}`);
+                // emit a handshake packet to verify the key/room for other users!?
+                socket.send(JSON.stringify({
+                    type: 'handshake',
+                    content: encryptMessage(roomId, sharedKey, roomId)
+                }));
+                break;
+            case 'handshake':
+                // verify the key/room with the handshake message
+                if (decryptMessage(data.content, sharedKey, roomId) !== roomId) {
+                    popnotif('Incorrect key', 'error');
+                    setTimeout(() => {
+                        location.href = "/";
+                    }, 1500);
+                }
                 break;
             case 'joined':
                 joinContainer.style.display = 'none';

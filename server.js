@@ -27,7 +27,7 @@ function getClientIp(req) {
 app.use(express.static(path.join(__dirname, '/public/'), {
     extensions: ['html'],
     setHeaders: (res, path) => {
-        res.setHeader('Cache-Control', `public, max-age=${60 * 60 * 1}`) 
+        res.setHeader('Cache-Control', `public, max-age=${60 * 10}`) 
     }
 }))
 
@@ -58,10 +58,18 @@ wss.on('connection', (ws, req) => {
                     creator: ip,
                     name: `AssChat Room`,
                     timeout: null,
-                    userMsgs: new Map()
+                    userMsgs: new Map(),
+                    handshake: null
                 });
                 userIPs.set(ip, roomId);
                 ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
+                break;
+
+            case 'handshake':
+                if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
+                    const room = chatRooms.get(roomId);
+                    room.handshake = data.content;
+                }
                 break;
 
             case 'join':
@@ -99,6 +107,13 @@ wss.on('connection', (ws, req) => {
                     users: Array.from(room.users.values()).map(u => u.userName),
                     isCreator: room.creator === ip
                 }));
+
+                if (room.handshake) {
+                    ws.send(JSON.stringify({
+                        type: 'handshake',
+                        content: room.handshake
+                    }));
+                }
 
                 room.users.forEach((user) => {
                     if (user.ws !== ws && user.ws.readyState === WebSocket.OPEN) {
