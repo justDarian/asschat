@@ -106,6 +106,7 @@ function connectWebSocket() {
 
         socket.onopen = () => {
             console.log('connected to AssChat server');
+            popnotif('connected to AssChat server', 'success');
             setupSocketHandlers();
             connecting = false;
             resolve(true);
