@@ -38,11 +38,14 @@
     <!-- Chat Container -->
     <div id="chat-container" class="glassmorphic mx-auto p-4 rounded-lg shadow-lg text-gray-300 fade-in relative z-10" style="display:none;">
         <!-- Chat Header -->
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="room-name" class="text-3xl font-bold">AssChat Room</h2>
-            <div class="flex items-center">
-                <button id="invite-btn" class="mr-4 p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors">
+        <div class="flex justify-between items-center mb-4 chat-header">
+            <h2 id="room-name" class="font-bold truncate">AssChat Room</h2>
+            <div class="flex items-center gap-2">
+                <button id="invite-btn" class="p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors">
                     <i data-lucide="user-plus"></i>
+                </button>
+                <button id="toggle-users-btn" class="p-2 rounded-full bg-purple-500 text-white hover:bg-purple-600 transition-colors mobile-only">
+                    <i data-lucide="users"></i>
                 </button>
                 <button id="settings-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
                     <i data-lucide="settings"></i>

@@ -1,6 +1,8 @@
 // global variables
-let socket, roomId, userName, sharedKey, owner, ping
+let socket, roomId, userName, sharedKey, owner, ping, connecting
+let attempts = 0
 const users = new Map();
+
 
 // dom elements
 const joinContainer = document.getElementById('join-container');
@@ -81,6 +83,23 @@ function decryptMessage(ciphertext,sharedKey,roomId) {
 
 // WebSocket functions
 function connectWebSocket() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        return true;
+    }
+
+    if (connecting) {
+        return new Promise((resolve) => {
+            const check = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    clearInterval(check);
+                    resolve(true);
+                }
+            }, 100);
+        });
+    }
+
+    connecting = true;
+
     return new Promise((resolve, reject) => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(`${protocol}//${window.location.host}`);
@@ -88,17 +107,29 @@ function connectWebSocket() {
         socket.onopen = () => {
             console.log('connected to AssChat server');
             setupSocketHandlers();
-            resolve();
+            connecting = false;
+            resolve(true);
         };
 
         socket.onerror = (error) => {
             console.error(error);
+            connecting = false;
             reject(error);
         };
 
         socket.onclose = () => {
-            popnotif('Connection to server closed', 'error');
-            location.href = "/";
+            connecting = false;
+            if (attempts > 4) {
+                popnotif('Failed to connect to AssChat server', 'error');
+                return setTimeout(() => {
+                    location.href = "/";
+                }, 3000);
+            }
+            popnotif('Connection to server closed, attempting to reconnect', 'error');
+            attempts++;
+            setTimeout(() => {
+                connectWebSocket();
+            }, 1000);
         };
 
         // pinger
@@ -108,23 +139,23 @@ function connectWebSocket() {
                     type: 'ping'
                 }));
                 ping = Date.now();
-                console.log("ping packet sent")
             }
         }, 1000 * 20);
-
-        // cutesey welcome
-        let meow = new Date()
-        meow.setHours(4, 20, 0, 0)
-        showmsg("System", "Welcome to AssChat! All of your messages are encrypted and this conversation is fully secure.", meow);
     });
 }
 
 function setupSocketHandlers() {
+    // cutesey welcome
+    let meow = new Date()
+    meow.setHours(4, 20, 0, 0)
+    showmsg("System", "Welcome to AssChat! All of your messages are encrypted and this conversation is fully secure.", meow);
+
+    // set onmessage to the socket handlers
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         switch (data.type) {
             case 'pong':
-                console.log(`pong packet received from server: ${Date.now() - ping}ms`);
+                console.log(`ping: ${Date.now() - ping}ms`);
                 ping = null
                 break;
             case 'roomCreated':
@@ -197,7 +228,7 @@ async function createRoom() {
     if (!userName) return popnotif('Username is empty', 'warning');
     localStorage.setItem('username', userName.substring(0, 20));
     
-    sharedKey = "ASSCHAT_" + crypto.getRandomValues(new Uint8Array(24)).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    sharedKey = crypto.getRandomValues(new Uint8Array(16)).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
     
     try {
         await connectWebSocket();
@@ -488,6 +519,30 @@ function closeSettingsModalHandler() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    connectWebSocket();
+
     messageInput.style.height = 'auto';
     lucide.createIcons();
+});
+
+// for mobile
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleUsersBtn = document.getElementById('toggle-users-btn');
+    const userListContainer = document.querySelector('.user-list-container');
+
+    if (toggleUsersBtn && userListContainer) {
+        toggleUsersBtn.addEventListener('click', function(eventt) {
+            eventt.stopPropagation();
+            userListContainer.classList.toggle('show');
+        });
+
+        // close the user list when u click out the box shit
+        document.querySelector('.chat-container').addEventListener('click', function(e) {
+            if (!userListContainer.contains(e.target) && 
+                !toggleUsersBtn.contains(e.target) && 
+                userListContainer.classList.contains('show')) {
+                userListContainer.classList.remove('show');
+            }
+        });
+    }
 });

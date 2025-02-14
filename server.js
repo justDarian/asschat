@@ -9,12 +9,12 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = false
+const debug = true
 
 const PORT = process.env.PORT || 80;
 // limit rules
-const MAX_LEN = { USER: 20, MSG: 150 };
-const RATE = { PER_USER: 3, WINDOW: 5000 };
+const MAX_LEN = { USER: 20, MSG: 2000 };
+const RATE = { PER_USER: 7, WINDOW: 1000 };
 // data store
 const chatRooms = new Map();
 const userIPs = new Map();
@@ -44,14 +44,14 @@ wss.on('connection', (ws, req) => {
 
         switch (data.type) {
             case 'ping':
-                ws.send(JSON.stringify({ type: 'pong', message: "hello from AssChat websocket server!! :3"}));
+                ws.send(JSON.stringify({ type: 'pong'}));
                 break
             case 'create':
                 if (userIPs.get(ip) >= 2) {
                     ws.send(JSON.stringify({ type: 'error', message: 'ladies, ladies, one room at a time' }));
                     return;
                 }
-                roomId = crypto.randomBytes(16).toString("hex");
+                roomId = crypto.randomBytes(12).toString("hex");
                 chatRooms.set(roomId, { 
                     users: new Map(), 
                     messages: [], 
@@ -130,7 +130,7 @@ wss.on('connection', (ws, req) => {
             case 'message':
                 if (roomId && chatRooms.has(roomId)) {
                     // check length of message so its not *too* big
-                    if (data.content.length > 1000) {
+                    if (data.content.length > MAX_LEN.MSG) {
                         return  ws.send(JSON.stringify({ type: 'error', message: 'message too long' }));
                     }
 
