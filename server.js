@@ -23,7 +23,7 @@ function getClientIp(req) {
     if (debug) return crypto.randomBytes(4).toString('hex')
     return req.headers['x-forwarded-for']
         ? req.headers['x-forwarded-for'].split(",")[0]
-        : req.socket.remoteAddress;
+        : req.connection.remoteAddress;
 }
 
 app.use(express.static(path.join(__dirname, '/public/'), {
