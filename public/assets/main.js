@@ -25,9 +25,12 @@ const closeSettingsModal = document.getElementById('close-settings-modal');
 function escape(input) {
     if (typeof input !== 'string') input = String(input);
     return input
-        .replace(/<[^>]*>/g, 'HTML NOT ALLOWED')
-        .replace(/\b(href|src|style)\s*=\s*(['"])(javascript|data|vbscript):.*?\2/gi, 'XSS PREVENTED')
+        .replace(/<[^>]*>/gi, 'HTML NOT ALLOWED')
+        .replace(/\b(href|src|style)\s*=\s*(['"]?)\s*(?:javascript|data|vbscript):/gi, 'XSS PREVENTED')
+        .replace(/javascript:/gi, '')
+        .replace(/[\[\]\(\)]/g, '');
 }
+
 
 // event listeners
 createRoomBtn.addEventListener('click', createRoom);
@@ -207,7 +210,7 @@ function setupSocketHandlers() {
                 break;
             case 'roomClosed':
                 popnotif('Room closed', 'error');
-                window.history.pushState(null, '', `/`);
+                window.location.href = "/";
                 break;
             case 'roomRenamed':
                 document.getElementById('room-name').textContent = data.newName;
