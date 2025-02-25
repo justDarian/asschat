@@ -26,6 +26,12 @@ function getClientIp(req) {
         : req.connection.remoteAddress;
 }
 
+// fuck zero width unicode chars
+function isValidUsername(username) {
+    return /^[\x20-\x7E]+$/.test(username)
+}
+
+
 app.use(express.static(path.join(__dirname, '/public/'), {
     extensions: ['html'],
     setHeaders: (res, path) => {
@@ -75,32 +81,40 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'join':
-                roomId = data.roomId;
-                userName = data.userName.substring(0, MAX_LEN.USER);
-
-                if (!chatRooms.has(roomId)) {
-                    return ws.send(JSON.stringify({ type: 'error', message: 'room not found' }));
+                const newRoomId = data.roomId;
+                let newUserName = data.userName.substring(0, MAX_LEN.USER).trim()
+            
+                // make sure username is good
+                if (newUserName.length === 0) {
+                    return ws.send(JSON.stringify({ type: 'error', message: 'Username cannot be empty' }));
                 }
-
-                const room = chatRooms.get(roomId);
-
-                // check username if taken
+                if (!isValidUsername(newUserName)) {
+                    return ws.send(JSON.stringify({ type: 'error', message: 'Username contains invalid characters' }));
+                }
+            
+                if (!chatRooms.has(newRoomId)) {
+                    return ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+                }
+            
+                const room = chatRooms.get(newRoomId);
+            
                 for (const [userIp, user] of room.users.entries()) {
-                    if (user.userName === userName && userIp !== ip) {
-                        return ws.send(JSON.stringify({ type: 'error', message: 'username already taken' }));
+                    if (user.userName === newUserName && userIp !== ip) {
+                        return ws.send(JSON.stringify({ type: 'error', message: 'Username already taken' }));
                     }
                 }
-
-                // anti spam muahahah
+            
+                // check if user is already in room
                 if (room.users.has(ip)) {
-                    return ws.send(JSON.stringify({ type: 'error', message: 'already joined this room' }));
+                    return ws.send(JSON.stringify({ type: 'error', message: 'Already joined this room' }));
                 }
-
-                if (room.deletionTimeout) {
-                    clearTimeout(room.deletionTimeout);
-                    room.deletionTimeout = null;
-                }
-                room.users.set(ip, { userName, ws });
+            
+                // NOW update vars
+                roomId = newRoomId;
+                userName = newUserName;
+            
+                // add user to room
+                room.users.set(ip, { userName: newUserName, ws });
 
                 ws.send(JSON.stringify({
                     type: 'joined',
