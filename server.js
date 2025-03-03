@@ -83,14 +83,9 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'join':
-<<<<<<< HEAD
                 if (!data.roomId || typeof data.userName === 'undefined') return;
                 const newRoomId = data.roomId;
                 let newUserName = String(data.userName).substring(0, MAX_LEN.USER).trim();
-=======
-                const newRoomId = data.roomId;
-                let newUserName = data.userName.substring(0, MAX_LEN.USER).trim()
->>>>>>> ab09d302705b4c05a2b26b23644f894478b84956
             
                 // make sure username is good
                 if (newUserName.length === 0) {
