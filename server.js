@@ -48,6 +48,7 @@ wss.on('connection', (ws, req) => {
         let data;
         try {
             data = JSON.parse(message)
+            if (!data || !data.type) return;
         } catch {return}
 
         switch (data.type) {
@@ -74,6 +75,7 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'handshake':
+                if (!data.content) return;
                 if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
                     const room = chatRooms.get(roomId);
                     room.handshake = data.content;
@@ -81,8 +83,14 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'join':
+<<<<<<< HEAD
+                if (!data.roomId || typeof data.userName === 'undefined') return;
+                const newRoomId = data.roomId;
+                let newUserName = String(data.userName).substring(0, MAX_LEN.USER).trim();
+=======
                 const newRoomId = data.roomId;
                 let newUserName = data.userName.substring(0, MAX_LEN.USER).trim()
+>>>>>>> ab09d302705b4c05a2b26b23644f894478b84956
             
                 // make sure username is good
                 if (newUserName.length === 0) {
@@ -144,6 +152,7 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'message':
+                if (!data.content || !data.content.includes("ASSCRYPT_")) return;
                 if (roomId && chatRooms.has(roomId)) {
                     // check length of message so its not *too* big
                     if (data.content.length > MAX_LEN.MSG) {
@@ -177,9 +186,10 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'renameRoom':
+                if (!data.newName) return;
                 if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
                     const room = chatRooms.get(roomId);
-                    room.name = "AssChat - " + data.newName;
+                    room.name = "AssChat - " + String(data.newName);
                     room.users.forEach((user) => {
                         if (user.ws.readyState === WebSocket.OPEN) {
                             user.ws.send(JSON.stringify({ type: 'roomRenamed', newName: room.name }));
@@ -203,9 +213,11 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'setTimeout':
+                if (typeof data.timeout === 'undefined') return;
                 if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
                     const room = chatRooms.get(roomId);
-                    const timeout = parseInt(data.timeout) * 60 * 1000;
+                    const timeout = parseInt(String(data.timeout)) * 60 * 1000;
+                    if (isNaN(timeout)) return;
                     if (room.timeout) clearTimeout(room.timeout);
                     room.timeout = setTimeout(() => {
                         room.users.forEach((user) => {
