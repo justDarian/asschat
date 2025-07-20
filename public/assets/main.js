@@ -1,5 +1,5 @@
 // global variables
-let socket, roomId, userName, sharedKey, owner, ping, connecting
+let socket, roomId, userName, sharedKey, owner, ping, connecting, notificationSound = null
 let attempts = 0
 const users = new Map();
 
@@ -45,41 +45,54 @@ document.getElementById('set-timeout-btn').addEventListener('click', setRoomTime
 document.getElementById('close-room-btn').addEventListener('click', closeRoom);
 
 // encryption functions
-function encryptMessage(message,sharedKey,roomId) {
-    const deadData = CryptoJS.lib.WordArray.random(2).toString();
+function encryptMessage(message, sharedKey, roomId) {
     const salt = CryptoJS.lib.WordArray.random(4).toString();
     const iv = CryptoJS.lib.WordArray.random(4).toString();
+
     const compositeKey = CryptoJS.SHA256(sharedKey + roomId).toString();
     const combinedKey = CryptoJS.PBKDF2(compositeKey, salt, {
         keySize: 256 / 32,
         iterations: 1000
     });
-    const encrypted = CryptoJS.AES.encrypt(deadData + message + deadData, combinedKey, {
-        iv: CryptoJS.enc.Utf16.parse(iv)
+    const encrypted = CryptoJS.AES.encrypt(message, combinedKey, {
+        iv: CryptoJS.enc.Utf8.parse(iv)
     });
+
     const finalData = salt + iv + encrypted.toString();
-    return "ASSCRYPT_"+CryptoJS.enc.Utf16.stringify(CryptoJS.enc.Utf8.parse(finalData));
+    return "ASSCRYPT_" + CryptoJS.enc.Utf16.stringify(CryptoJS.enc.Utf8.parse(finalData));
 }
 
-function decryptMessage(ciphertext,sharedKey,roomId) {
-    ciphertext = ciphertext.replace("ASSCRYPT_", "")
+function decryptMessage(ciphertext, sharedKey, roomId) {
+    // remove "ASSCRYPT_"
+    ciphertext = ciphertext.slice(9)
+    // fix utf16
+    ciphertext = CryptoJS.enc.Utf16.parse(ciphertext).toString(CryptoJS.enc.Utf8);
+
     try {
-        const decodedText = CryptoJS.enc.Utf16.parse(ciphertext).toString(CryptoJS.enc.Utf8);
-        const salt = decodedText.substr(0, 8);
-        const iv = decodedText.substr(8, 8);
-        const encrypted = decodedText.substr(16);
+        const salt = ciphertext.substr(0, 8);
+        const iv = ciphertext.substr(8, 8);
+        const encrypted = ciphertext.substr(16);
+
         const compositeKey = CryptoJS.SHA256(sharedKey + roomId).toString();
         const combinedKey = CryptoJS.PBKDF2(compositeKey, salt, {
             keySize: 256 / 32,
             iterations: 1000
         });
         const decrypted = CryptoJS.AES.decrypt(encrypted, combinedKey, {
-            iv: CryptoJS.enc.Utf16.parse(iv)
+            iv: CryptoJS.enc.Utf8.parse(iv)
         });
-        const fullMessage = decrypted.toString(CryptoJS.enc.Utf8);
-        return fullMessage.substr(4, fullMessage.length - 8);
-    } catch(kys) {
-        console.log(kys)
+
+        try {
+            // why the fuck does this not work (sometimes)
+            //console.log(decrypted)
+            return decrypted.toString(CryptoJS.enc.Utf8);
+        } catch {
+            console.log("some shit happened, using this stupid ass latin1 stupid ass stupid ass method");
+            // why the fuck does this work (most times)
+            return decrypted.toString(CryptoJS.enc.Latin1);
+        }
+    } catch (error) {
+        console.log(error);
         return "ASSCRYPT ERROR CHECK CONSOLE";
     }
 }
@@ -190,16 +203,18 @@ function setupSocketHandlers() {
                 joinContainer.style.display = 'none';
                 chatContainer.style.display = 'block';
                 updateUserList(data.users);
-                data.messages.forEach(msg => showmsg(msg.userName, decryptMessage(msg.content,sharedKey,roomId), new Date(msg.timestamp)));
+                data.messages.forEach(msg => showmsg(msg.userName, decryptMessage(msg.content, sharedKey, roomId), new Date(msg.timestamp)));
 
                 owner = data.isCreator;
                 settingsBtn.style.display = owner ? 'inline-block' : 'none';
                 break;
             case 'message':
-                showmsg(data.userName, decryptMessage(data.content,sharedKey,roomId), new Date(data.timestamp));
+                showmsg(data.userName, decryptMessage(data.content, sharedKey, roomId), new Date(data.timestamp));
 
+                // really cool notification sound
                 if (data.userName !== userName && !document.hasFocus()) {
-                    new Audio("assets/noti.mp3").play()
+                    notificationSound.currentTime = 0 // reset
+                    notificationSound.play()
                 }
                 break;
             case 'userJoined':
@@ -231,9 +246,9 @@ async function createRoom() {
     userName = usernameInput.value.trim();
     if (!userName) return popnotif('Username is empty', 'warning');
     localStorage.setItem('username', userName.substring(0, 20));
-    
+
     sharedKey = crypto.getRandomValues(new Uint8Array(16)).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
-    
+
     try {
         await connectWebSocket();
         socket.send(JSON.stringify({
@@ -264,7 +279,7 @@ async function joinRoom() {
     } else {
         try {
             await connectWebSocket();
-            
+
             if (!sharedKey) {
                 popnotif('Invalid invite link', 'error');
                 return;
@@ -316,7 +331,7 @@ function sendMessage() {
     if (message && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
             type: 'message',
-            content: encryptMessage(message,sharedKey,roomId)
+            content: encryptMessage(message, sharedKey, roomId)
         }));
         messageInput.value = '';
         autoResizeInput();
@@ -527,6 +542,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     messageInput.style.height = 'auto';
     lucide.createIcons();
+
+    // cache notifcation sound
+    if (notificationSound === null) {
+        notificationSound = new Audio("assets/noti.mp3");
+        notificationSound.load();
+    }
 });
 
 // for mobile
@@ -542,8 +563,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // close the user list when u click out the box shit
         document.querySelector('.chat-container').addEventListener('click', function(e) {
-            if (!userListContainer.contains(e.target) && 
-                !toggleUsersBtn.contains(e.target) && 
+            if (!userListContainer.contains(e.target) &&
+                !toggleUsersBtn.contains(e.target) &&
                 userListContainer.classList.contains('show')) {
                 userListContainer.classList.remove('show');
             }
