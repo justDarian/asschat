@@ -9,12 +9,12 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = false
+const debug = true
 
-const PORT = process.env.PORT || 80;
+const PORT = 3000;
 // limit rules
 const MAX_LEN = { USER: 20, MSG: 5000 };
-const RATE = { PER_USER: 2, WINDOW: 1000 };
+const RATE = { PER_USER: 2, WINDOW: 1000, RENAMEROOM: 1000 };
 // data store
 const chatRooms = new Map();
 const userIPs = new Map();
@@ -30,7 +30,6 @@ function getClientIp(req) {
 function isValidUsername(username) {
     return /^[\x20-\x7E]+$/.test(username)
 }
-
 
 app.use(express.static(path.join(__dirname, '/public/'), {
     extensions: ['html'],
@@ -49,7 +48,7 @@ wss.on('connection', (ws, req) => {
         try {
             data = JSON.parse(message)
             if (!data || !data.type) return;
-        } catch {return}
+        } catch {return ws.close(69, "stop fucking around thx")}
 
         switch (data.type) {
             case 'ping':
@@ -147,7 +146,7 @@ wss.on('connection', (ws, req) => {
                 break;
 
             case 'message':
-                if (!data.content || !data.content.includes("ASSCRYPT_")) return;
+                if (!data.content || !data.content.startsWith("ASSCRYPT_")) return ws.close(69, "stop fucking around thx");
                 if (roomId && chatRooms.has(roomId)) {
                     // check length of message so its not *too* big
                     if (data.content.length > MAX_LEN.MSG) {
@@ -165,6 +164,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
                         return;
                     }
+
                     recentMsgs.push(now);
                     room.userMsgs.set(ip, recentMsgs);
 
@@ -173,8 +173,8 @@ wss.on('connection', (ws, req) => {
                         content: data.content, 
                         timestamp: new Date().toISOString() 
                     };
+
                     room.messages.push(msg);
-            
                     room.users.forEach(u => u.ws.readyState === WebSocket.OPEN && 
                         u.ws.send(JSON.stringify({ type: 'message', ...msg })));
                 }
@@ -184,6 +184,15 @@ wss.on('connection', (ws, req) => {
                 if (!data.newName) return;
                 if (roomId && chatRooms.has(roomId) && chatRooms.get(roomId).creator === ip) {
                     const room = chatRooms.get(roomId);
+                    const now = Date.now();
+                    
+                    // limit u gay poopie
+                    if (room.lastRename && now - room.lastRename < RATE.RENAMEROOM) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
+                        return;
+                    }
+                    
+                    room.lastRename = now;
                     room.name = "AssChat - " + String(data.newName);
                     room.users.forEach((user) => {
                         if (user.ws.readyState === WebSocket.OPEN) {
@@ -235,10 +244,10 @@ wss.on('connection', (ws, req) => {
             room.users.delete(ip);
             if (room.users.size === 0) {
                 if (room.timeout) clearTimeout(room.timeout);
-                room.deletionTimeout = setTimeout(() => {
+                room.timeout = setTimeout(() => {
                     chatRooms.delete(roomId);
                     userIPs.delete(ip);
-                }, 10000);
+                }, 5 * 60 * 1000);
             } else {
                 room.users.forEach((user) => {
                     if (user.ws.readyState === WebSocket.OPEN) {
