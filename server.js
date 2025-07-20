@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // DEBUG MODE
-const debug = true
+const debug = false;
 
 const PORT = 3000;
 // limit rules
