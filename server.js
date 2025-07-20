@@ -13,8 +13,8 @@ const debug = false
 
 const PORT = process.env.PORT || 80;
 // limit rules
-const MAX_LEN = { USER: 20, MSG: 2000 };
-const RATE = { PER_USER: 7, WINDOW: 1000 };
+const MAX_LEN = { USER: 20, MSG: 5000 };
+const RATE = { PER_USER: 2, WINDOW: 1000 };
 // data store
 const chatRooms = new Map();
 const userIPs = new Map();
