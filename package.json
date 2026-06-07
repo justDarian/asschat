@@ -2,8 +2,8 @@
     "dependencies": {
         "crypto": "*",
         "express": "*",
-        "http": "^0.0.1-security",
-        "path": "^0.12.7",
-        "ws": "^8.18.0"
+        "http": "*",
+        "path": "*",
+        "ws": "*"
     }
 }
