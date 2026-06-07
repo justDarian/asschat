@@ -1,9 +1,10 @@
 {
-    "dependencies": {
-        "crypto": "*",
-        "express": "*",
-        "http": "*",
-        "path": "*",
-        "ws": "*"
-    }
+  "name": "asschat",
+  "dependencies": {
+    "express": "*",
+    "ws": "*"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
 }
